@@ -1,6 +1,8 @@
 # TOF
 
-A Particle project named TOF
+A Particle project named TOF.
+
+Testing the Sparkfun VL53L5CX TOF module.
 
 ## Welcome to your project!
 
