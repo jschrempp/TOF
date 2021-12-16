@@ -26,12 +26,12 @@ VL53L5CX_ResultsData measurementData; // Result data class structure, 1356 byes 
 int imageResolution = 0; //Used to pretty print output
 int imageWidth = 0; //Used to pretty print output
 
-// enable the system thread to make sure that loop() does not block for cloud ops
+// XXX enable the system thread to make sure that loop() does not block for cloud ops
 //SYSTEM_THREAD(ENABLED);
 
 void setup()
 {
-  // turn on D7 LED to indicate that we are in setup()
+  // XXX turn on D7 LED to indicate that we are in setup()
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
   
@@ -90,5 +90,7 @@ void loop()
     }
   }
 
-  delay(5); //Small delay between polling
+  //delay(5); //Small delay between polling
+  // XXX add in larger delay to allow data to be visualized
+  delay(4000);  // large delay between polling
 }
