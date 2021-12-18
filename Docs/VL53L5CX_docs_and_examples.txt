@@ -1,0 +1,20 @@
+Examples that shed a little more light on the meaning of frequency and other VL53L5CX attributes:
+
+https://github.com/kriswiner/VL53L5CX
+
+Arduino library for VL53L5CX.  Includes example for motion indicator use.  The little that I could see
+in here is that motion indication does not seem to report where motion is; it only says that there is motion, hence
+you might only want to read out data when motion is sensed.  It also has an example for multiple targets per zone, 
+albeit I didn't find the example code to be very informative.
+
+https://github.com/simondlevy/VL53L5
+
+Sparkfun hookup guide:
+
+https://learn.sparkfun.com/tutorials/qwiic-tof-imager---vl53l5cx-hookup-guide
+
+ST web page for VL53L5CXL:
+
+https://www.st.com/en/imaging-and-photonics-solutions/vl53l5cx.html
+
+
