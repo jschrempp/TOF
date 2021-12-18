@@ -17,4 +17,52 @@ ST web page for VL53L5CXL:
 
 https://www.st.com/en/imaging-and-photonics-solutions/vl53l5cx.html
 
+ST VL53L5CX User Manual:  Document number UM2884 is included in this repository.  This document explains a lot! Here
+are some highlights:
+	"ULD (Ultralight Driver)":  This is ST's library that works directly with their firmware.  The ULD is actually
+		a set of files, as follows:
+			vl53l5cx_api.h and _api.c (mandatory)
+			vl53l5cx_buffers.h and _buffers.c (mandatory)
+			vl53l5cx_plugin_detection_thresholds.h and .c (optional)
+			vl53l5cx_motion_indicator.h and .c (optional)
+			vl53l5cx_xtalk.h and .c (optional)
+			platform.h and platform.c (mandatory)
+		These files are all included in the sparkfun arduino library: lib/Sparkfun_VL53L5cx_Arduino_Library/src,
+			albeit the .c files are renamed to .cpp	
+		The ULD files are generic c files for use with any host platform.  It looks like Simon Levy adapted these
+			ULD files for Arduino, and then Sparkfun added some structs and defined constants and used the lot
+			of these to create their library.
+		The optional files are only needed if the specific optional functionality is used in a project.
+		NOTE: The Sparkfun library wraps most of the ULD functions described below and in this document. Use
+		the Sparkfun library calls and not these lower level calls where Sparkfun calls are available.
+		
+	"Cross Talk (xtalk)":  Infrared light is internally reflected in the sensor due to the senor cover filter and
+		internal optics. This causes crosstalk (xtalk) which must be calibrated out.  NOTE: the module comes
+		pre-calibrated for it's own cover and optics and xtalk re-calibration is NOT REQUIRED.  Re-calibration
+		is only required if the module is protected by a cover glass.  See secion 3.2 for details.
+		
+	"Ranging Flow":  detailed in section 3.3.  Basically, any paramters that need to be changed on the module must
+		be changed before ranging is started.  Ranging is started once (function: vl53l5cs_start_ranging() ).
+		Thereafter, ranging is continuous at the chosen rate (frequency).  However, the host must check for new data
+		available by the function: vl53l5cx_check_data_ready() or by processing the interrupt signal.  The function
+		vl53l5cs_stop_ranging() may be used to stop the ranging (presumably to save power when not needed).
+		
+	"Initialization":  detailed in section 4.1.  Basically, must call vl53l5cx_init() before setting anything up or starting
+		ranging.  The init() function downloads firmware to the module's onboard microcontroller (about 84 KB).
+		
+	"Resolution": detailed in section 4.3.  The module supports two resolutions: 4x4 and 8x8.  Default is 4x4.  the function:
+		vl53l5cx_set_resolution() is used to change the resolution.  If resolution is changed, the ranging frequency
+		may need to be changed afterwards because the max ranging frequency of 4x4 is 60 Hz and the max for 8x8 is 15 Hz.
+		The default is 1 Hz, which is OK for both resolutions.
+		
+	"Ranging Frequency": detailed in section 4.4.  The function: vl53l5cx_set_ranging_frequency_hz()changes the frequency.
+	
+	"Ranging Mode": detailed in section 4.5.  There are two ranging modes: "continuous" and "automatic".  Continuous mode
+		pre-sets integration time and is best to use for speed and accuracy.  Automatic mode allows
+		integration time to be user specified and can result in lower power operation.  The function: 
+		vl53l5cx_set_ranging_mode()is used to change the mode. A discussion of integration time and how it works is
+		in section 4.6.
+		
+	"Power Modes": detailed in section 4.7.  ***LEFT OFF HERE ***
+
 
