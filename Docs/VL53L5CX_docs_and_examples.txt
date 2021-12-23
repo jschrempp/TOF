@@ -1,3 +1,9 @@
+THIS DOCUMENT CONTAINS NOTES FROM MY STUDY OF THE VL53L5CX LIBRARIES AND WHATEVER DOCUMENTATION THAT I COULD FIND.
+
+Author: Bob Glicksman
+Date: 12/23/21
+Rev. 1
+
 Examples that shed a little more light on the meaning of frequency and other VL53L5CX attributes:
 
 https://github.com/kriswiner/VL53L5CX
@@ -13,7 +19,7 @@ Sparkfun hookup guide:
 
 https://learn.sparkfun.com/tutorials/qwiic-tof-imager---vl53l5cx-hookup-guide
 
-ST web page for VL53L5CXL:
+ST web page for VL53L5CX:
 
 https://www.st.com/en/imaging-and-photonics-solutions/vl53l5cx.html
 
@@ -130,12 +136,38 @@ SUMMARY THOUGHTS AFTER READING THROUGH THE USER MANUAL:
 			Eyes move between various targets within some range zone?
 		
 		
-ANALYSIS OF THE SPARKFUN LIBRARY FILES.  As mentioned above, the ST ULD functions are generic and the lbrary contains C++ wrappers
+ANALYSIS OF THE SPARKFUN LIBRARY FILES.  As mentioned above, the ST ULD functions are generic and the library contains C++ wrappers
 	for Arduino implemention.  Therefore, the ULD functions described in the User Manual (document UM2884) are not called directly.
-	The library files have been analysed and here is a list of the functions that should be used, as needed, when operating
-	the VL53L5CX device.
+	The library files have been analysed and here is a synopsis of what these files are and what they do:
 	
-	*** LEFT OFF HERE ***
-	
-	*** LEFT OFF HERE ***
+	SparkFun_VL53L5CX_Library.h/.cpp:  This is the main library file.  In essence, it wraps the ST .c files of the ULD with a
+		skinny object oriented wrapper.  In addition, an error structure is defined and the funtions populate this error
+		structure in a consistant way.  The methods in this library should be used to control and read from the VL53L5CX
+		device.  The ST libraries should NOT be used.  For one thing, they are generic and do not instantiate the I2C bus. This
+		library uses the SparkFun_VL53L5CX_IO.h/.cpp library to create a peoper (Arduino) instance of the I2C bus needed to 
+		communicate with the VL53L5CX device.
+		
+	SparkFun_VL53L5CX_Library_Constants.h:  This file contains a whole list of defined constants (including enumerations) that
+		are used by the SparkFun_VL53L5CX_Library.h/.cpp functions and methods.  They make the latter code a lot more readable.
+		
+	SparkFun_VL53L5CX_IO.h/.cpp:  This library compliments the SparkFun_VL53L5CX_Library.h/.cpp by creating a set of callable functions
+		and methods for I2C I/O communication with the VL53L5CX device.  Method such as .begin() in the main library file
+		instantiate an I2C object, status this I/O object to ensure that a device is connected,and provide methods to read 
+		and write single and multiple byte messages from/to the device.
+		
+	ST Libraries:  These libraries should NOT be called directly by application code.  The Sparkfun libraries, described above, 
+		should be used.  These ST .c libraries are needed because they provide underlying functionality for the Sparkfun "wrappers".
+		Note that the ST libraries have been re-cast into .h and .cpp files from their original .c files (I assume: in order for the
+		Arduino C++ compiler to properly recognize them).  As best that I can tell, these libraries are otherwise unaltered from
+		their original; ST .c form.  Here is a list of what these files contain:
+		
+		vl53l5cx_api.h/.cpp:  This is the main source code for the ST library.
+		platform.h/.cpp:  this is an auxiliary ST library that appears to be the basis for adding the optional plugins to a project.
+		buffers.h:  this file appears to contain the compiled hex file of the firmware that is downloaded to the VL53L5CX
+			internal microcontroller upon device initialization.
+		vl53l5cx_plugin_detection_thresholds.h/.cpp:  this file contains code for the optional detection threshold setting
+			on the VL53L5CX device.
+		vl53l5cx_motion_indicator.h/.cpp:  this file contains code for the optional motion indicator settings
+			on the VL53L5CX device.
+		vl53l5cx_plugin_xtalk.h/.cpp:  this file contains code for the optional cross-talk setting on the VL53L5CX device.
 	
