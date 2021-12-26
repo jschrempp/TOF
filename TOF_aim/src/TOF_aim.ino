@@ -82,7 +82,7 @@ void setup()
   // data is now ready
   if (myImager.getRangingData(&measurementData)) //Read distance data into array
   {
-    // read out the measyred data into an array
+    // read out the measured data into an array
     for(int i = 0; i < 64; i++)
     {
         calibration[i] = measurementData.distance_mm[i];
@@ -108,7 +108,7 @@ void loop()
   {
     if (myImager.getRangingData(&measurementData)) //Read distance data into array
     {
-      // read out the measyred data into an array
+      // read out the measured data into an array
       for(int i = 0; i < 64; i++)
       {
           measuredData[i] = measurementData.distance_mm[i];
@@ -122,17 +122,17 @@ void loop()
 
 // function to pretty print data to serial port
 void prettyPrint(uint16_t dataArray[]) {
-    //The ST library returns the data transposed from zone mapping shown in datasheet
-    //Pretty-print data with increasing y, decreasing x to reflect reality 
+  //The ST library returns the data transposed from zone mapping shown in datasheet
+  //Pretty-print data with increasing y, decreasing x to reflect reality 
 
-    for(int y = 0; y <= imageWidth * (imageWidth - 1) ; y += imageWidth)  {
+  for(int y = 0; y <= imageWidth * (imageWidth - 1) ; y += imageWidth)  {
 
-        for (int x = imageWidth - 1 ; x >= 0 ; x--) {
-            Serial.print("\t");
-            Serial.print(dataArray[x + y]);
-        }
-        Serial.println();
-
-    } 
+    for (int x = imageWidth - 1 ; x >= 0 ; x--) {
+      Serial.print("\t");
+      Serial.print(dataArray[x + y]);
+    }
     Serial.println();
+
+  } 
+  Serial.println();
 }
