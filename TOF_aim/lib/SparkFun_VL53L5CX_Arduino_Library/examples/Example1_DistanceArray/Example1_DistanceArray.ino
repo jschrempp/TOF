@@ -17,24 +17,14 @@
 
 #include <SparkFun_VL53L5CX_Library.h> //http://librarymanager/All#SparkFun_VL53L5CX
 
-// XXX use D7 LED for status
-const int LED_PIN = D7;
-
 SparkFun_VL53L5CX myImager;
 VL53L5CX_ResultsData measurementData; // Result data class structure, 1356 byes of RAM
 
 int imageResolution = 0; //Used to pretty print output
 int imageWidth = 0; //Used to pretty print output
 
-// XXX enable the system thread to make sure that loop() does not block for cloud ops
-//SYSTEM_THREAD(ENABLED);
-
 void setup()
 {
-  // XXX turn on D7 LED to indicate that we are in setup()
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH);
-  
   Serial.begin(115200);
   delay(1000);
   Serial.println("SparkFun VL53L5CX Imager Example");
@@ -50,22 +40,11 @@ void setup()
   }
   
   myImager.setResolution(8*8); //Enable all 64 pads
-
-  // XXX try 4x4 to see if it makes a difference
-  //myImager.setResolution(4*4); //Enable all 64 pads
   
   imageResolution = myImager.getResolution(); //Query sensor for current resolution - either 4x4 or 8x8
   imageWidth = sqrt(imageResolution); //Calculate printing width
 
-  // XXX debug print statement - are we communicating with the module
-  String theResolution = "Resolution = ";
-  theResolution += String(imageResolution);
-  Serial.println(theResolution);
-
   myImager.startRanging();
-
-  // XXX indicate that setup() is complete
-  digitalWrite(LED_PIN, LOW);
 }
 
 void loop()
@@ -91,6 +70,4 @@ void loop()
   }
 
   delay(5); //Small delay between polling
-  // XXX add in larger delay to allow data to be visualized
-  //delay(4000);  // large delay between polling
 }

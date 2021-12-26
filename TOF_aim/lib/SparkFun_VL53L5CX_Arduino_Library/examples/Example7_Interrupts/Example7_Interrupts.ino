@@ -6,7 +6,10 @@
   License: MIT. See license file for more information but you can
   basically do whatever you want with this code.
 
-  This example shows how to read all 64 distance readings at once.
+  This example shows how to read the interrupt from the VL53L5CX.
+
+  The INT pin is active low, output, by default. For this example you'll need to solder
+  a wire from the INT pin to pin 4 (or any interrupt capable pin) on your microcontroller
 
   Feel like supporting our work? Buy a board from SparkFun!
   https://www.sparkfun.com/products/18642
@@ -17,62 +20,52 @@
 
 #include <SparkFun_VL53L5CX_Library.h> //http://librarymanager/All#SparkFun_VL53L5CX
 
-// XXX use D7 LED for status
-const int LED_PIN = D7;
-
 SparkFun_VL53L5CX myImager;
 VL53L5CX_ResultsData measurementData; // Result data class structure, 1356 byes of RAM
 
 int imageResolution = 0; //Used to pretty print output
 int imageWidth = 0; //Used to pretty print output
 
-// XXX enable the system thread to make sure that loop() does not block for cloud ops
-//SYSTEM_THREAD(ENABLED);
+#define INT_PIN 4 //Connect VL53L5CX INT pin to pin 4 on your microcontroller
+volatile bool dataReady = false; //Goes true when interrupt fires
 
 void setup()
 {
-  // XXX turn on D7 LED to indicate that we are in setup()
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH);
-  
   Serial.begin(115200);
   delay(1000);
   Serial.println("SparkFun VL53L5CX Imager Example");
 
-  Wire.begin(); //This resets to 100kHz I2C
-  Wire.setClock(400000); //Sensor has max I2C freq of 400kHz 
-  
+  Wire.begin(); //This resets I2C bus to 100kHz
+  Wire.setClock(400000); //Sensor has max I2C freq of 400kHz
+
   Serial.println("Initializing sensor board. This can take up to 10s. Please wait.");
   if (myImager.begin() == false)
   {
     Serial.println(F("Sensor not found - check your wiring. Freezing"));
     while (1) ;
   }
-  
-  myImager.setResolution(8*8); //Enable all 64 pads
 
-  // XXX try 4x4 to see if it makes a difference
-  //myImager.setResolution(4*4); //Enable all 64 pads
-  
+  myImager.setResolution(8 * 8); //Enable all 64 pads
+
   imageResolution = myImager.getResolution(); //Query sensor for current resolution - either 4x4 or 8x8
   imageWidth = sqrt(imageResolution); //Calculate printing width
 
-  // XXX debug print statement - are we communicating with the module
-  String theResolution = "Resolution = ";
-  theResolution += String(imageResolution);
-  Serial.println(theResolution);
+  myImager.setRangingFrequency(15);
+
+  // Attach the interrupt
+  attachInterrupt(digitalPinToInterrupt(INT_PIN), interruptRoutine, FALLING);
+  Serial.println(F("Interrupt pin configured."));
 
   myImager.startRanging();
-
-  // XXX indicate that setup() is complete
-  digitalWrite(LED_PIN, LOW);
 }
 
 void loop()
 {
-  //Poll sensor for new data
-  if (myImager.isDataReady() == true)
+  //ISR will let us know when new data is ready
+  if (dataReady == true)
   {
+    dataReady = false;
+
     if (myImager.getRangingData(&measurementData)) //Read distance data into array
     {
       //The ST library returns the data transposed from zone mapping shown in datasheet
@@ -91,6 +84,10 @@ void loop()
   }
 
   delay(5); //Small delay between polling
-  // XXX add in larger delay to allow data to be visualized
-  //delay(4000);  // large delay between polling
+}
+
+void interruptRoutine()
+{
+  // Just set the flag that we have updated data and return from the ISR
+  dataReady = true;
 }

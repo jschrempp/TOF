@@ -6,7 +6,11 @@
   License: MIT. See license file for more information but you can
   basically do whatever you want with this code.
 
-  This example shows how to read all 64 distance readings at once.
+  This example shows how to increase output frequency.
+
+  Default is 1Hz.
+  Using 4x4, min frequency is 1Hz and max is 60Hz
+  Using 8x8, min frequency is 1Hz and max is 15Hz
 
   Feel like supporting our work? Buy a board from SparkFun!
   https://www.sparkfun.com/products/18642
@@ -17,55 +21,55 @@
 
 #include <SparkFun_VL53L5CX_Library.h> //http://librarymanager/All#SparkFun_VL53L5CX
 
-// XXX use D7 LED for status
-const int LED_PIN = D7;
-
 SparkFun_VL53L5CX myImager;
 VL53L5CX_ResultsData measurementData; // Result data class structure, 1356 byes of RAM
 
 int imageResolution = 0; //Used to pretty print output
 int imageWidth = 0; //Used to pretty print output
 
-// XXX enable the system thread to make sure that loop() does not block for cloud ops
-//SYSTEM_THREAD(ENABLED);
-
 void setup()
 {
-  // XXX turn on D7 LED to indicate that we are in setup()
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH);
-  
   Serial.begin(115200);
   delay(1000);
   Serial.println("SparkFun VL53L5CX Imager Example");
 
-  Wire.begin(); //This resets to 100kHz I2C
-  Wire.setClock(400000); //Sensor has max I2C freq of 400kHz 
-  
+  Wire.begin(); //This resets I2C bus to 100kHz
+  Wire.setClock(400000); //Sensor has max I2C freq of 400kHz
+
   Serial.println("Initializing sensor board. This can take up to 10s. Please wait.");
   if (myImager.begin() == false)
   {
     Serial.println(F("Sensor not found - check your wiring. Freezing"));
     while (1) ;
   }
-  
-  myImager.setResolution(8*8); //Enable all 64 pads
 
-  // XXX try 4x4 to see if it makes a difference
-  //myImager.setResolution(4*4); //Enable all 64 pads
-  
+  myImager.setResolution(8 * 8); //Enable all 64 pads
+
   imageResolution = myImager.getResolution(); //Query sensor for current resolution - either 4x4 or 8x8
   imageWidth = sqrt(imageResolution); //Calculate printing width
 
-  // XXX debug print statement - are we communicating with the module
-  String theResolution = "Resolution = ";
-  theResolution += String(imageResolution);
-  Serial.println(theResolution);
+  //Using 4x4, min frequency is 1Hz and max is 60Hz
+  //Using 8x8, min frequency is 1Hz and max is 15Hz
+  bool response = myImager.setRangingFrequency(15);
+  if (response == true)
+  {
+    int frequency = myImager.getRangingFrequency();
+    if (frequency > 0)
+    {
+      Serial.print("Ranging frequency set to ");
+      Serial.print(frequency);
+      Serial.println(" Hz.");
+    }
+    else
+      Serial.println(F("Error recovering ranging frequency."));
+  }
+  else
+  {
+    Serial.println(F("Cannot set ranging frequency requested. Freezing..."));
+    while (1) ;
+  }
 
   myImager.startRanging();
-
-  // XXX indicate that setup() is complete
-  digitalWrite(LED_PIN, LOW);
 }
 
 void loop()
@@ -91,6 +95,4 @@ void loop()
   }
 
   delay(5); //Small delay between polling
-  // XXX add in larger delay to allow data to be visualized
-  //delay(4000);  // large delay between polling
 }

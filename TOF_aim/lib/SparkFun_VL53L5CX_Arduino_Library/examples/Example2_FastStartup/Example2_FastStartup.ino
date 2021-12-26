@@ -6,8 +6,26 @@
   License: MIT. See license file for more information but you can
   basically do whatever you want with this code.
 
-  This example shows how to read all 64 distance readings at once.
+  This example shows how to setup the I2C bus to minimize the amount
+  of time taken to init the sensor.
+  
+  At each power on reset, a staggering 86,000 bytes of firmware have to be sent to the sensor.
+  At 100kHz, this can take ~9.4s. By increasing the clock speed, we can cut this time down to ~1.4s.
 
+  Two parameters can be tweaked: 
+  
+    Clock speed: The VL53L5CX has a max bus speed of 400kHz but we have had success up to 1MHz.
+
+    Max transfer size: The majority of Arduino platforms default to 32 bytes. If you are using one 
+    with a larger buffer (ESP32 is 128 bytes for example), this can help decrease transfer times a bit.
+  
+  Measurements:
+    Default 100kHz clock and 32 byte transfer: 9.4s
+    400kHz, 32 byte transfer: 2.8s
+    400kHz, 128 byte transfer: 2.5s
+    1MHz, 32 byte transfer: 1.65s
+    1MHz, 128 byte transfer: 1.4s
+  
   Feel like supporting our work? Buy a board from SparkFun!
   https://www.sparkfun.com/products/18642
 
@@ -17,55 +35,48 @@
 
 #include <SparkFun_VL53L5CX_Library.h> //http://librarymanager/All#SparkFun_VL53L5CX
 
-// XXX use D7 LED for status
-const int LED_PIN = D7;
-
 SparkFun_VL53L5CX myImager;
 VL53L5CX_ResultsData measurementData; // Result data class structure, 1356 byes of RAM
 
 int imageResolution = 0; //Used to pretty print output
 int imageWidth = 0; //Used to pretty print output
 
-// XXX enable the system thread to make sure that loop() does not block for cloud ops
-//SYSTEM_THREAD(ENABLED);
-
 void setup()
 {
-  // XXX turn on D7 LED to indicate that we are in setup()
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH);
-  
   Serial.begin(115200);
   delay(1000);
   Serial.println("SparkFun VL53L5CX Imager Example");
 
-  Wire.begin(); //This resets to 100kHz I2C
+  Wire.begin(); //This resets I2C bus to 100kHz
   Wire.setClock(400000); //Sensor has max I2C freq of 400kHz 
-  
+  //Wire.setClock(1000000); //Run sensor out of spec
+
+  //myImager.setWireMaxPacketSize(128); //Increase default from 32 bytes to 128 - not supported on all platforms
+
   Serial.println("Initializing sensor board. This can take up to 10s. Please wait.");
-  if (myImager.begin() == false)
+
+  //Time how long it takes to transfer firmware to sensor
+  long startTime = millis();
+  bool startup = myImager.begin();
+  long stopTime = millis();
+  
+  if (startup == false)
   {
     Serial.println(F("Sensor not found - check your wiring. Freezing"));
     while (1) ;
   }
+
+  Serial.print("Firmware transfer time: ");
+  float timeTaken = (stopTime - startTime) / 1000.0;
+  Serial.print(timeTaken, 3);
+  Serial.println("s");
   
   myImager.setResolution(8*8); //Enable all 64 pads
-
-  // XXX try 4x4 to see if it makes a difference
-  //myImager.setResolution(4*4); //Enable all 64 pads
   
   imageResolution = myImager.getResolution(); //Query sensor for current resolution - either 4x4 or 8x8
   imageWidth = sqrt(imageResolution); //Calculate printing width
 
-  // XXX debug print statement - are we communicating with the module
-  String theResolution = "Resolution = ";
-  theResolution += String(imageResolution);
-  Serial.println(theResolution);
-
   myImager.startRanging();
-
-  // XXX indicate that setup() is complete
-  digitalWrite(LED_PIN, LOW);
 }
 
 void loop()
@@ -91,6 +102,4 @@ void loop()
   }
 
   delay(5); //Small delay between polling
-  // XXX add in larger delay to allow data to be visualized
-  //delay(4000);  // large delay between polling
 }
