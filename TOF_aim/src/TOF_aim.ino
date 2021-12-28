@@ -25,11 +25,12 @@
 
 #include <SparkFun_VL53L5CX_Library.h> //http://librarymanager/All#SparkFun_VL53L5CX
 
-// XXX use D7 LED for status
+// use D7 LED for status
 const int LED_PIN = D7;
 
-// XXX noise range in measured data.  Anything within +/- 50 of the calibrations is noise
+// noise range in measured data.  Anything within +/- 50 of the calibrations is noise
 const uint16_t NOISE_RANGE = 50;
+const uint16_t MAX_CALIBRATION = 2000;  // anything greater is set to 2000 mm
 
 SparkFun_VL53L5CX myImager;
 VL53L5CX_ResultsData measurementData; // Result data class structure, 1356 byes of RAM
@@ -86,6 +87,11 @@ void setup()
     for(int i = 0; i < 64; i++)
     {
         calibration[i] = measurementData.distance_mm[i];
+
+        // adjust for calibration values being 0 or too long for measurement
+        if( (calibration[i] == 0) || (calibration[i] > MAX_CALIBRATION) ) {
+          calibration[i] = MAX_CALIBRATION;
+        }
     }
     Serial.println("Calibration data:");
     prettyPrint(calibration);
@@ -101,7 +107,7 @@ void setup()
 
 void loop()
 {
-  int16_t measuredData;
+  int32_t measuredData, temp;
   uint16_t adjustedData[imageResolution];
   
   //Poll sensor for new data.  Adjust if close to calibration value
@@ -112,18 +118,24 @@ void loop()
       // read out the measured data into an array
       for(int i = 0; i < 64; i++)
       {
-          // check new data against calibration value
-          measuredData = measurementData.distance_mm[i] - calibration[i];
-          
-          // take the absoluted value
-          if(measuredData < 0) {
-            measuredData = -1 * measuredData;
+          // clamp measured values to 2000 mm
+          measuredData = measurementData.distance_mm[i];
+          if( (measuredData == 0) || (measuredData > MAX_CALIBRATION) ) {
+            measuredData = MAX_CALIBRATION;
           }
-          if(measuredData <= NOISE_RANGE) { // zero out noise  
-            adjustedData[i] = 0;
+
+          // check new data against calibration value
+          temp = measuredData - calibration[i];
+          
+          // take the absolute value
+          if(temp < 0) {
+            temp = -1 * temp;
+          }
+          if(temp <= NOISE_RANGE) { // zero out noise  
+            adjustedData[i] = MAX_CALIBRATION;
           } 
           else {
-            adjustedData[i] = measurementData.distance_mm[i];
+            adjustedData[i] = measuredData;
           }
       }
       prettyPrint(adjustedData);
