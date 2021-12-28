@@ -101,9 +101,10 @@ void setup()
 
 void loop()
 {
-  uint16_t measuredData[imageResolution];
+  int16_t measuredData;
+  uint16_t adjustedData[imageResolution];
   
-  //Poll sensor for new data
+  //Poll sensor for new data.  Adjust if close to calibration value
   if (myImager.isDataReady() == true)
   {
     if (myImager.getRangingData(&measurementData)) //Read distance data into array
@@ -111,9 +112,21 @@ void loop()
       // read out the measured data into an array
       for(int i = 0; i < 64; i++)
       {
-          measuredData[i] = measurementData.distance_mm[i];
+          // check new data against calibration value
+          measuredData = measurementData.distance_mm[i] - calibration[i];
+          
+          // take the absoluted value
+          if(measuredData < 0) {
+            measuredData = -1 * measuredData;
+          }
+          if(measuredData <= NOISE_RANGE) { // zero out noise  
+            adjustedData[i] = 0;
+          } 
+          else {
+            adjustedData[i] = measurementData.distance_mm[i];
+          }
       }
-      prettyPrint(measuredData);
+      prettyPrint(adjustedData);
     }
   }
 
