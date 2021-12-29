@@ -1,0 +1,62 @@
+typedef struct
+{
+	/* Ambiant noise in kcps/spads */
+#ifndef VL53L5CX_DISABLE_AMBIENT_PER_SPAD
+	uint32_t ambient_per_spad[VL53L5CX_RESOLUTION_8X8];
+#endif
+
+	/* Number of valid target detected for 1 zone */
+#ifndef VL53L5CX_DISABLE_NB_TARGET_DETECTED
+	uint8_t nb_target_detected[VL53L5CX_RESOLUTION_8X8];
+#endif
+
+	/* Number of spads enabled for this ranging */
+#ifndef VL53L5CX_DISABLE_NB_SPADS_ENABLED
+	uint32_t nb_spads_enabled[VL53L5CX_RESOLUTION_8X8];
+#endif
+
+	/* Signal returned to the sensor in kcps/spads */
+#ifndef VL53L5CX_DISABLE_SIGNAL_PER_SPAD
+	uint32_t signal_per_spad[(VL53L5CX_RESOLUTION_8X8
+					*VL53L5CX_NB_TARGET_PER_ZONE)];
+#endif
+
+	/* Sigma of the current distance in mm */
+#ifndef VL53L5CX_DISABLE_RANGE_SIGMA_MM
+	uint16_t range_sigma_mm[(VL53L5CX_RESOLUTION_8X8
+					*VL53L5CX_NB_TARGET_PER_ZONE)];
+#endif
+
+	/* Measured distance in mm */
+#ifndef VL53L5CX_DISABLE_DISTANCE_MM
+	int16_t distance_mm[(VL53L5CX_RESOLUTION_8X8
+					*VL53L5CX_NB_TARGET_PER_ZONE)];
+#endif
+
+	/* Estimated reflectance in percent */
+#ifndef VL53L5CX_DISABLE_REFLECTANCE_PERCENT
+	uint8_t reflectance[(VL53L5CX_RESOLUTION_8X8
+					*VL53L5CX_NB_TARGET_PER_ZONE)];
+#endif
+
+	/* Status indicating the measurement validity (5 & 9 means ranging OK)*/
+#ifndef VL53L5CX_DISABLE_TARGET_STATUS
+	uint8_t target_status[(VL53L5CX_RESOLUTION_8X8
+					*VL53L5CX_NB_TARGET_PER_ZONE)];
+#endif
+
+	/* Motion detector results */
+#ifndef VL53L5CX_DISABLE_MOTION_INDICATOR
+	struct
+	{
+		uint32_t global_indicator_1;
+		uint32_t global_indicator_2;
+		uint8_t	 status;
+		uint8_t	 nb_of_detected_aggregates;
+		uint8_t	 nb_of_aggregates;
+		uint8_t	 spare;
+		uint32_t motion[32];
+	} motion_indicator;
+#endif
+
+} VL53L5CX_ResultsData;

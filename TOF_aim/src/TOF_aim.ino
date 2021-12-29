@@ -98,6 +98,8 @@ void setup()
     Serial.println("End of calibration data\n");
   }
   
+  // XXX clear out the ST driver array before the next reading
+  clearOutData(measurementData.distance_mm);
 
   delay(5); //Small delay between polling
 
@@ -113,7 +115,7 @@ void loop()
   //Poll sensor for new data.  Adjust if close to calibration value
   if (myImager.isDataReady() == true)
   {
-    if (myImager.getRangingData(&measurementData)) //Read distance data into array
+    if (myImager.getRangingData(&measurementData)) //Read distance data into ST driver array
     {
       // read out the measured data into an array
       for(int i = 0; i < 64; i++)
@@ -142,6 +144,9 @@ void loop()
     }
   }
 
+  // XXX clear out the ST driver array before the next reading
+  clearOutData(measurementData.distance_mm);
+
   delay(5); //Small delay between polling
 }
 
@@ -160,4 +165,12 @@ void prettyPrint(uint16_t dataArray[]) {
 
   } 
   Serial.println();
+}
+
+// XXX function to clear out the data array
+// XXX clear out the ST driver array before the next reading
+void clearOutData(int16_t dataArray[]) {
+  for (int i = 0; i < 64; i++) {
+      dataArray[i] = 0;
+  }
 }
