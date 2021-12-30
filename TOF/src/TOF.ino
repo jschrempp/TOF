@@ -17,6 +17,10 @@
 
 #include <SparkFun_VL53L5CX_Library.h> //http://librarymanager/All#SparkFun_VL53L5CX
 
+#include <Adafruit_PWMServoDriver.h>
+
+Adafruit_PWMServoDriver pwm_; 
+
 // XXX use D7 LED for status
 const int LED_PIN = D7;
 
@@ -28,6 +32,33 @@ int imageWidth = 0; //Used to pretty print output
 
 // XXX enable the system thread to make sure that loop() does not block for cloud ops
 //SYSTEM_THREAD(ENABLED);
+
+const int EYESERVOX = 0;
+const int EYESERVOY = 1;
+const int LIDLEFTTOPSERVO = 2;
+const int LIDLEFTBOTSERVO = 3;
+const int LIDRIGHTTOPSERVO = 4;
+const int LIDRIGHTBOTSERVO = 5;
+
+const int EYEMINX = -121;
+const int EYEMAXX = 141;
+const int EYEMINY = -82;
+const int EYEMAXY = 98;
+const int LIDLEFTTOPOPEN = 287;
+const int LIDLEFTBOTOPEN = 450;
+const int LIDRIGHTTOPOPEN = 469;
+const int LIDRIGHTBOTOPEN = 265;
+
+void moveEyes (int x, int y){
+
+    double xPos = map(x, 0, 100, EYEMINX, EYEMAXX);
+    double yPos = map(y, 0, 100, EYEMINY, EYEMAXY);
+
+    pwm_.setPWM(EYESERVOX, 0, xPos);
+    pwm_.setPWM(EYESERVOY, 0, yPos);   
+
+}
+
 
 void setup()
 {
@@ -64,6 +95,16 @@ void setup()
 
   myImager.startRanging();
 
+    // set up eyes and have the lids open
+    pwm_ = Adafruit_PWMServoDriver();
+    pwm_.begin(); 
+    pwm_.setPWMFreq(60);  // Analog servos run at ~60 Hz updates
+    pwm_.setPWM(LIDLEFTBOTSERVO, 0, LIDLEFTBOTOPEN);
+    pwm_.setPWM(LIDRIGHTBOTSERVO, 0, LIDRIGHTBOTOPEN);
+    pwm_.setPWM(LIDLEFTTOPSERVO, 0, LIDLEFTTOPOPEN);
+    pwm_.setPWM(LIDRIGHTTOPSERVO, 0, LIDRIGHTTOPOPEN);
+    moveEyes(50,50);
+
   // XXX indicate that setup() is complete
   digitalWrite(LED_PIN, LOW);
 }
@@ -90,7 +131,14 @@ void loop()
     }
   }
 
-  delay(5); //Small delay between polling
+    
+  //decide where to point the eyes
+  // x,y 0-100
+  moveEyes(50,50);
+
+  //delay(5); //Small delay between polling
   // XXX add in larger delay to allow data to be visualized
-  //delay(4000);  // large delay between polling
+  delay(4000);  // large delay between polling
 }
+
+
