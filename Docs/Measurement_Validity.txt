@@ -23,10 +23,9 @@ So the next iteration of the algorithm will be:
 2.  In loop(), read out range measurement and also status code for each zone and reject (distance = 2000) codes
 	that don't have a status code of 5 or 9.
 3.  Further filter the data to reject (distance = 2000) codes that are within +/- 50 mm of the previous data value for that zone
-	(note: may need to be lengthened based upon further testing).  The reulting matrix should show only valid data for
-	changes.
-4.  Select the closest measurement (valide changed data) for the point to aim the eyes at.  Keep the eyes at the same
-	point if no measurements show any change.
+	(note: may need to be lengthened based upon further testing).  The resulting matrix should show only valid data for
+	changes (closer than the calibration values).
+4.  Select the closest measurement for the point to aim the eyes at.
 	
 I plan to try this algorithm on the next pass through the code. It will probably need some more tweeking before we get it right,
 but this is the next logicial thing to try.
