@@ -99,7 +99,7 @@ void setup()
   }
   
   // XXX clear out the ST driver array before the next reading
-  clearOutData(measurementData.distance_mm);
+  //clearOutData(measurementData.distance_mm);
 
   delay(5); //Small delay between polling
 
@@ -141,11 +141,28 @@ void loop()
           }
       }
       prettyPrint(adjustedData);
+
+      // XXX print out the target status data to see what info it actually provides
+      Serial.println("Target status data: \n");
+      for(int i = 0; i < 64; i++)
+      {
+          measuredData = (uint16_t)measurementData.target_status[i];
+          adjustedData[i] = measuredData;
+      }
+      prettyPrint(adjustedData);
+      Serial.println();
+
     }
   }
 
   // XXX clear out the ST driver array before the next reading
-  clearOutData(measurementData.distance_mm);
+  //clearOutData(measurementData.distance_mm);
+
+  //XXX try srart and stop ranging
+ /* myImager.stopRanging();
+  delay(100);
+  myImager.startRanging();
+  */
 
   delay(5); //Small delay between polling
 }

@@ -1,0 +1,33 @@
+MEASUREMENT VALIDITY
+
+Bob Glicksman, 11/03/22
+
+We have found that the measured range data can be incorrect if the reflected signal is weak or not detected at all (e.g. large room).
+Further investigation of the documentation, particularly document UM2884 section 5, reveals meta data that is returned in the struct
+that has the range data array.  According to the table in section 5.5 of this document, the array "target_status" that is part of
+the measured data struct contains status information about what was found.  According to the note below this table, status == 5
+denotes a valid range with 100% confidence.  Status == 6 or 9 denotes a range measurement confidence value of 50% or higher.  All
+other status' are lower than 50% confidence.
+
+I modified the test code (TOF_aim.ino) to print out this status array along with the range measurements.  I tested this first with
+a solid while wall about 1 ft in front of the sensor array.  I got status' that were mostly 5, but sometimes 9.  I them moved the
+sensor to point at a wall that is about 11 ft away.  I mostly got status' of 255, but occasional 4, 5, 9, 10 as well.
+
+My conclusion is that if we test each zone for target_status[zone_number] of 5 or 9 (accept) or any other (reject), we can then
+adjust our range measurements to filter out "bad" readings and accept only the good readings.  My results suggest that this
+technique won't be perfect, as 9's only have 50%+ confidence, but should be good enough.
+
+So the next iteration of the algorithm will be:
+
+1.  In setup(), produce a calibration array (as at present, since bad values return as zero anyway).
+2.  In loop(), read out range measurement and also status code for each zone and reject (distance = 2000) codes
+	that don't have a status code of 5 or 9.
+3.  Further filter the data to reject (distance = 2000) codes that are within +/- 50 mm of the previous data value for that zone
+	(note: may need to be lengthened based upon further testing).  The reulting matrix should show only valid data for
+	changes.
+4.  Select the closest measurement (valide changed data) for the point to aim the eyes at.  Keep the eyes at the same
+	point if no measurements show any change.
+	
+I plan to try this algorithm on the next pass through the code. It will probably need some more tweeking before we get it right,
+but this is the next logicial thing to try.
+
