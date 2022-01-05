@@ -41,6 +41,13 @@ uint16_t calibration[64];
 int imageResolution = 0; //Used to pretty print output
 int imageWidth = 0; //Used to pretty print output
 
+void moveTerminalCursorUp(int numLines){
+    String cursorUp = String("\033[") + String(numLines) + String("A");
+    Serial.print(cursorUp);
+    Serial.print("\r");
+
+}
+
 void setup()
 {
   // XXX turn on D7 LED to indicate that we are in setup()
@@ -49,6 +56,7 @@ void setup()
   
   Serial.begin(115200);
   delay(1000);
+  Serial.println("\f\f\f\f\f\f\f\f\f\f"); // get past any previous table display.
   Serial.println("SparkFun VL53L5CX Imager Example");
 
   Wire.begin(); //This resets to 100kHz I2C
@@ -140,7 +148,9 @@ void loop()
             adjustedData[i] = measuredData;
           }
       }
+      
       prettyPrint(adjustedData);
+      moveTerminalCursorUp(imageWidth+1); // cursor at top of table, ready for next refresh
     }
   }
 
