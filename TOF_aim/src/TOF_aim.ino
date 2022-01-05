@@ -15,8 +15,12 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman
-  Date: 12/26/21
+  Date: 1/5/22
 
+  rev 0.4.  Determine minimum valid range value and the coordinates of that value
+    (note: unsure of coordinate system origin - 0,0?)
+  rev 0.3.  Filter out bad measurements based upon target_status info
+  rev 0.2.  Calibrate background and eliminate background measurements
   rev 0.1.  Restructure example code to put more stuff into functions.
 
 */
@@ -35,15 +39,16 @@ const uint16_t MAX_CALIBRATION = 2000;  // anything greater is set to 2000 mm
 SparkFun_VL53L5CX myImager;
 VL53L5CX_ResultsData measurementData; // Result data class structure, 1356 byes of RAM
 
-// XXX 8x8 array of calibration values
-uint16_t calibration[64];
+// declare 8x8 array of calibration values
+int32_t calibration[64];
 
-int imageResolution = 0; //Used to pretty print output
-int imageWidth = 0; //Used to pretty print output
+int imageResolution = 0; // read this back from the sensor
+int imageWidth = 0; // read this back from the sensor
+
 
 void setup()
 {
-  // XXX turn on D7 LED to indicate that we are in setup()
+  // turn on D7 LED to indicate that we are in setup()
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
   
@@ -61,23 +66,24 @@ void setup()
     while (1) ;
   }
   
-  myImager.setResolution(8*8); //Enable all 64 pads
+  myImager.setResolution(64); //Enable all 64 pads - 8 x 8 array of readings
   
   imageResolution = myImager.getResolution(); //Query sensor for current resolution - either 4x4 or 8x8
   imageWidth = sqrt(imageResolution); //Calculate printing width
 
-  // XXX debug print statement - are we communicating with the module
+  // debug print statement - are we communicating with the module
   String theResolution = "Resolution = ";
   theResolution += String(imageResolution);
   Serial.println(theResolution);
 
   myImager.startRanging();
 
-  // XXX fill in the calibration data array
+  // fill in the calibration data array
 
   // wait for data to be ready
   do {
     // do nothing here, wait for data to be ready
+    delay(5); //Small delay between polling
   } while(myImager.isDataReady() != true);
 
   // data is now ready
@@ -86,89 +92,103 @@ void setup()
     // read out the measured data into an array
     for(int i = 0; i < 64; i++)
     {
-        calibration[i] = measurementData.distance_mm[i];
+      calibration[i] = measurementData.distance_mm[i];
 
-        // adjust for calibration values being 0 or too long for measurement
-        if( (calibration[i] == 0) || (calibration[i] > MAX_CALIBRATION) ) {
-          calibration[i] = MAX_CALIBRATION;
-        }
+      // adjust for calibration values being 0 or too long for measurement
+      if( (calibration[i] == 0) || (calibration[i] > MAX_CALIBRATION) ) {
+        calibration[i] = MAX_CALIBRATION;
+      }
     }
     Serial.println("Calibration data:");
     prettyPrint(calibration);
     Serial.println("End of calibration data\n");
   }
-  
-  // XXX clear out the ST driver array before the next reading
-  //clearOutData(measurementData.distance_mm);
 
-  delay(5); //Small delay between polling
 
-  // XXX indicate that setup() is complete
+
+  // indicate that setup() is complete
   digitalWrite(LED_PIN, LOW);
 }
 
 void loop()
 {
-  int32_t measuredData, temp;
-  uint16_t adjustedData[imageResolution];
+  int32_t measuredData, temp, smallestValue, focusX, focusY;
+  uint8_t statusCode;
+  int32_t adjustedData[imageResolution];
   
   //Poll sensor for new data.  Adjust if close to calibration value
+  
   if (myImager.isDataReady() == true)
   {
     if (myImager.getRangingData(&measurementData)) //Read distance data into ST driver array
     {
-      // read out the measured data into an array
-      for(int i = 0; i < 64; i++)
-      {
-          // clamp measured values to 2000 mm
-          measuredData = measurementData.distance_mm[i];
-          if( (measuredData == 0) || (measuredData > MAX_CALIBRATION) ) {
-            measuredData = MAX_CALIBRATION;
-          }
+      // initialize findings
+      smallestValue = MAX_CALIBRATION; // start with the max allowed
+      focusX = -255;  // code for no focus determined
+      focusY = -255;  // code for no focus determined
 
+      // process the measured data
+      for(int i = 0; i < imageResolution; i++) 
+      {
+        // process the status code, only good data if status code is 5 or 9
+        statusCode = measurementData.target_status[i];
+        measuredData = measurementData.distance_mm[i];
+
+        if( (statusCode != 5) && (statusCode != 9)) { // TOF measurement is bad
+          adjustedData[i] = -1;
+
+        } else if ( (measuredData == 0) || (measuredData > MAX_CALIBRATION) ) 
+        { //data out of range
+            
+          adjustedData[i] = -2;  // indicate out of range data
+
+        } else 
+        { // data is good and in range, check if background
+          
           // check new data against calibration value
           temp = measuredData - calibration[i];
           
           // take the absolute value
           if(temp < 0) {
-            temp = -1 * temp;
+            temp = -temp;
           }
-          if(temp <= NOISE_RANGE) { // zero out noise  
-            adjustedData[i] = MAX_CALIBRATION;
+
+          if(temp <= NOISE_RANGE) 
+          { // zero out noise  
+              
+            adjustedData[i] = -3; // data is background; ignore
           } 
-          else {
-            adjustedData[i] = measuredData;
+          else 
+          {
+            adjustedData[i] = (int16_t) measuredData;
           }
-      }
-      prettyPrint(adjustedData);
 
-      // XXX print out the target status data to see what info it actually provides
-      Serial.println("Target status data: \n");
-      for(int i = 0; i < 64; i++)
-      {
-          measuredData = (uint16_t)measurementData.target_status[i];
-          adjustedData[i] = measuredData;
-      }
-      prettyPrint(adjustedData);
-      Serial.println();
+        }
+        if( (adjustedData[i] > 0) && (adjustedData[i] < smallestValue) ) {
+          // we have a new smallest range that is not calibration; record
+          smallestValue = adjustedData[i];
+          focusX = i % imageWidth;
+          focusY = i / imageWidth;
+        }
+      
+      } 
+      prettyPrint(adjustedData);  
 
+      // print out focus value found
+      Serial.print("\nFocus on x = ");
+      Serial.print(focusX);
+      Serial.print(" ;y = ");
+      Serial.print(focusY);
+      Serial.print(" range = ");
+      Serial.println(smallestValue);
     }
   }
-
-  // XXX clear out the ST driver array before the next reading
-  //clearOutData(measurementData.distance_mm);
-
-  //XXX try srart and stop ranging
- /* myImager.stopRanging();
-  delay(100);
-  myImager.startRanging();
-  */
-
   delay(5); //Small delay between polling
+  delay(3000);  // longer delay to ponder results
 }
 
 // function to pretty print data to serial port
-void prettyPrint(uint16_t dataArray[]) {
+void prettyPrint(int32_t dataArray[]) {
   //The ST library returns the data transposed from zone mapping shown in datasheet
   //Pretty-print data with increasing y, decreasing x to reflect reality 
 
@@ -182,12 +202,4 @@ void prettyPrint(uint16_t dataArray[]) {
 
   } 
   Serial.println();
-}
-
-// XXX function to clear out the data array
-// XXX clear out the ST driver array before the next reading
-void clearOutData(int16_t dataArray[]) {
-  for (int i = 0; i < 64; i++) {
-      dataArray[i] = 0;
-  }
 }
