@@ -46,6 +46,13 @@ int imageResolution = 0; // read this back from the sensor
 int imageWidth = 0; // read this back from the sensor
 
 
+void moveTerminalCursorUp(int numLines){
+    String cursorUp = String("\033[") + String(numLines) + String("A");
+    Serial.print(cursorUp);
+    Serial.print("\r");
+
+}
+
 void setup()
 {
   // turn on D7 LED to indicate that we are in setup()
@@ -54,6 +61,7 @@ void setup()
   
   Serial.begin(115200);
   delay(1000);
+  Serial.println("\f\f\f\f\f\f\f\f\f\f"); // get past any previous table display.
   Serial.println("SparkFun VL53L5CX Imager Example");
 
   Wire.begin(); //This resets to 100kHz I2C
@@ -181,10 +189,13 @@ void loop()
       Serial.print(focusY);
       Serial.print(" range = ");
       Serial.println(smallestValue);
-    }
+
+      moveTerminalCursorUp(imageWidth + 3); // cursor at top of table, ready for next refresh
+
   }
   delay(5); //Small delay between polling
   delay(3000);  // longer delay to ponder results
+}
 }
 
 // function to pretty print data to serial port
