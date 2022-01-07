@@ -15,8 +15,9 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman
-  Date: 1/5/22
+  Date: 1/6/22
 
+  rev 0.5.  Added code to overwrite data table
   rev 0.4.  Determine minimum valid range value and the coordinates of that value
     (note: unsure of coordinate system origin - 0,0?)
   rev 0.3.  Filter out bad measurements based upon target_status info
@@ -54,6 +55,7 @@ void setup()
   
   Serial.begin(115200);
   delay(1000);
+  Serial.println("\f\f\f\f\f\f\f\f\f\f"); // get past any previous table display
   Serial.println("SparkFun VL53L5CX Imager Example");
 
   Wire.begin(); //This resets to 100kHz I2C
@@ -181,10 +183,13 @@ void loop()
       Serial.print(focusY);
       Serial.print(" range = ");
       Serial.println(smallestValue);
+
+      // XXX overwrite the previous display
+      moveTerminalCursorUp(imageWidth + 3);
     }
   }
   delay(5); //Small delay between polling
-  delay(3000);  // longer delay to ponder results
+//  delay(3000);  // longer delay to ponder results
 }
 
 // function to pretty print data to serial port
@@ -196,10 +201,19 @@ void prettyPrint(int32_t dataArray[]) {
 
     for (int x = imageWidth - 1 ; x >= 0 ; x--) {
       Serial.print("\t");
-      Serial.print(dataArray[x + y]);
+
+      // XXXX changed to format print
+      Serial.printf("%-5d", dataArray[x + y]);
     }
     Serial.println();
 
   } 
   Serial.println();
+}
+
+// function to move the terminal cursor back up to overwrite previous data printout
+void moveTerminalCursorUp(int numlines) {
+  String cursorUp = String("\033[") + String(numlines) + String("A");
+  Serial.print(cursorUp);
+  Serial.print("\r");
 }
