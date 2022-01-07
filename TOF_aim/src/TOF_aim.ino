@@ -15,8 +15,9 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman
-  Date: 1/6/22
-
+  Date: 1/7/22
+    
+  rev 0.6   Adds second data table to continuous output
   rev 0.5.  Added code to overwrite data table
   rev 0.4.  Determine minimum valid range value and the coordinates of that value
     (note: unsure of coordinate system origin - 0,0?)
@@ -29,6 +30,9 @@
 #include <Wire.h>
 
 #include <SparkFun_VL53L5CX_Library.h> //http://librarymanager/All#SparkFun_VL53L5CX
+
+// used in main loop to move cursor to the top of the displayed table
+#define CURSOR_RESET_ROWS 22
 
 // use D7 LED for status
 const int LED_PIN = D7;
@@ -55,7 +59,7 @@ void setup()
   
   Serial.begin(115200);
   delay(1000);
-  Serial.println("\f\f\f\f\f\f\f\f\f\f"); // get past any previous table display
+  moveTerminalCursorDown(CURSOR_RESET_ROWS);
   Serial.println("SparkFun VL53L5CX Imager Example");
 
   Wire.begin(); //This resets to 100kHz I2C
@@ -117,6 +121,8 @@ void loop()
   int32_t measuredData, temp, smallestValue, focusX, focusY;
   uint8_t statusCode;
   int32_t adjustedData[imageResolution];
+  int32_t secondTable[imageResolution];   // second table to print out
+  String secondTableTitle = ""; // will hold title of second table 
   
   //Poll sensor for new data.  Adjust if close to calibration value
   
@@ -135,6 +141,8 @@ void loop()
         // process the status code, only good data if status code is 5 or 9
         statusCode = measurementData.target_status[i];
         measuredData = measurementData.distance_mm[i];
+        secondTable[i] = measurementData.nb_target_detected[i];
+        secondTableTitle = "num targets";
 
         if( (statusCode != 5) && (statusCode != 9)) { // TOF measurement is bad
           adjustedData[i] = -1;
@@ -174,7 +182,7 @@ void loop()
         }
       
       } 
-      prettyPrint(adjustedData);  
+      prettyPrint(adjustedData); 
 
       // print out focus value found
       Serial.print("\nFocus on x = ");
@@ -183,9 +191,15 @@ void loop()
       Serial.print(focusY);
       Serial.print(" range = ");
       Serial.println(smallestValue);
+      Serial.println();
+      Serial.println();
+
+      Serial.println(secondTableTitle);
+      prettyPrint(secondTable);
+      Serial.println();
 
       // XXX overwrite the previous display
-      moveTerminalCursorUp(imageWidth + 3);
+      moveTerminalCursorUp(CURSOR_RESET_ROWS);
     }
   }
   delay(5); //Small delay between polling
@@ -208,12 +222,19 @@ void prettyPrint(int32_t dataArray[]) {
     Serial.println();
 
   } 
-  Serial.println();
+  // Serial.println();
 }
 
 // function to move the terminal cursor back up to overwrite previous data printout
 void moveTerminalCursorUp(int numlines) {
   String cursorUp = String("\033[") + String(numlines) + String("A");
+  Serial.print(cursorUp);
+  Serial.print("\r");
+}
+
+// function to move the terminal cursor down to get past previous data printout - used on startup
+void moveTerminalCursorDown(int numlines) {
+  String cursorUp = String("\033[") + String(numlines) + String("B");
   Serial.print(cursorUp);
   Serial.print("\r");
 }
