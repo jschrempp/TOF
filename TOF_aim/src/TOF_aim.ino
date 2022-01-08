@@ -14,9 +14,11 @@
 
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
-  Author: Bob Glicksman
-  Date: 1/7/22
+  Author: Bob Glicksman, Jim Schrempp
+  Date: 1/8/22
     
+  rev 0.7   Add support for changing target order and sharpening. Also changed format of
+      decision printout to make it cleaner.
   rev 0.6   Adds second data table to continuous output
   rev 0.5.  Added code to overwrite data table
   rev 0.4.  Determine minimum valid range value and the coordinates of that value
@@ -81,6 +83,12 @@ void setup()
   String theResolution = "Resolution = ";
   theResolution += String(imageResolution);
   Serial.println(theResolution);
+
+  // XXX test out target order and sharpener changes
+  // myImager.setSharpenerPercent(20);
+  // myImager.setTargetOrder(SF_VL53L5CX_TARGET_ORDER::CLOSEST);
+  // myImager.setTargetOrder(SF_VL53L5CX_TARGET_ORDER::STRONGEST);
+  
 
   myImager.startRanging();
 
@@ -186,11 +194,12 @@ void loop()
 
       // print out focus value found
       Serial.print("\nFocus on x = ");
-      Serial.print(focusX);
-      Serial.print(" ;y = ");
-      Serial.print(focusY);
+      Serial.printf("%-5d", focusX);
+      Serial.print(" y = ");
+      Serial.printf("%-5d", focusY);
       Serial.print(" range = ");
-      Serial.println(smallestValue);
+      Serial.printf("%-5d", smallestValue);
+      Serial.println();
       Serial.println();
       Serial.println();
 
