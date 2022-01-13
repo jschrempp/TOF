@@ -15,11 +15,13 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman, Jim Schrempp
-  Date: 1/8/22
+  Date: 1/13/22
     
-  rev 0.7   Add support for changing target order and sharpening. Also changed format of
+  rev 0.8.  Filter out spurious data readings by making sure that adjacent pixel values
+      are valid data. *** REPORTS CORRECTLY - need to add in validate function
+  rev 0.7.  Add support for changing target order and sharpening. Also changed format of
       decision printout to make it cleaner.
-  rev 0.6   Adds second data table to continuous output
+  rev 0.6.  Adds second data table to continuous output
   rev 0.5.  Added code to overwrite data table
   rev 0.4.  Determine minimum valid range value and the coordinates of that value
     (note: unsure of coordinate system origin - 0,0?)
@@ -126,7 +128,7 @@ void setup()
 
 void loop()
 {
-  int32_t measuredData, temp, smallestValue, focusX, focusY;
+  int32_t measuredData, temp, smallestValue, locX, locY, focusX, focusY, testLocation;
   uint8_t statusCode;
   int32_t adjustedData[imageResolution];
   int32_t secondTable[imageResolution];   // second table to print out
@@ -182,15 +184,43 @@ void loop()
           }
 
         }
+        /*  Old v0.7 criteria; not used anymore
         if( (adjustedData[i] > 0) && (adjustedData[i] < smallestValue) ) {
           // we have a new smallest range that is not calibration; record
           smallestValue = adjustedData[i];
           focusX = i % imageWidth;
           focusY = i / imageWidth;
         }
-      
+        */
       } 
       prettyPrint(adjustedData); 
+
+      // XXXX New criteria (v 0.8+ for establishing the smallest valid distance)
+      //  Walk through the adjustedData array except for the edges.  For each possible
+      //    smallest value found, check that surrounding values asre valid.
+      
+      for(int i = 0; i < imageResolution; i++) {
+        // extract the x and y values of the array location
+        locX = i % imageWidth;
+        locY = i / imageWidth;
+
+        // do not process the edges: x, y == 0 or x,y == 7  
+        if( (locX != 0) && (locY !=0) && (locX != (imageWidth - 1)) && (locY != (imageWidth - 1) ) ) {
+          // test for the smallest value
+
+ //        if( (adjustedData[testLocation] > 0) && (adjustedData[testLocation] < smallestValue) 
+ //          && ( (validate(testLocation, adjustedData) == true) ) ) {
+
+          if( (adjustedData[i] > 0) && (adjustedData[i] < smallestValue) ) {
+            smallestValue = adjustedData[i];
+            focusX = imageWidth -1 - (i % imageWidth);
+            focusY = i / imageWidth;
+          }
+        }   
+
+
+      }
+      
 
       // print out focus value found
       Serial.print("\nFocus on x = ");
@@ -212,7 +242,7 @@ void loop()
     }
   }
   delay(5); //Small delay between polling
-//  delay(3000);  // longer delay to ponder results
+  delay(8000);  // longer delay to ponder results
 }
 
 // function to pretty print data to serial port
@@ -246,4 +276,25 @@ void moveTerminalCursorDown(int numlines) {
   String cursorUp = String("\033[") + String(numlines) + String("B");
   Serial.print(cursorUp);
   Serial.print("\r");
+}
+
+// function to validate that a value is surrounded by valid values
+bool validate(uint32_t location, int32_t dataArray[]) {
+  const int VALID_SCORE_MINIMUM = 8;
+  int score = 0;
+  uint32_t locX, locY;
+  locY = location/imageWidth;
+  locX = location - locY;
+  for(int yIndex = locY - 1; yIndex = locY + 1; locY++) {
+    for(int xIndex = locX - 1; xIndex = locX + 1; locX++) {
+      if(dataArray[(locY * imageWidth + locX)] > 0) { // valid value
+        score++;
+      }
+    }
+  }
+  if(score >= VALID_SCORE_MINIMUM) {
+    return true;  
+  } else {
+    return false;
+  }
 }
