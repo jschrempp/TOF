@@ -15,10 +15,11 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman, Jim Schrempp
-  Date: 1/13/22
+  Date: 1/14/22
     
   rev 0.8.  Filter out spurious data readings by making sure that adjacent pixel values
-      are valid data. *** REPORTS CORRECTLY - need to add in validate function
+      are valid data. Also fixed the reported smallest range coordinates to correspond
+      to the prettyPrint() display coordinates.
   rev 0.7.  Add support for changing target order and sharpening. Also changed format of
       decision printout to make it cleaner.
   rev 0.6.  Adds second data table to continuous output
@@ -128,7 +129,7 @@ void setup()
 
 void loop()
 {
-  int32_t measuredData, temp, smallestValue, locX, locY, focusX, focusY, testLocation;
+  int32_t measuredData, temp, smallestValue, locX, locY, focusX, focusY;
   uint8_t statusCode;
   int32_t adjustedData[imageResolution];
   int32_t secondTable[imageResolution];   // second table to print out
@@ -184,14 +185,7 @@ void loop()
           }
 
         }
-        /*  Old v0.7 criteria; not used anymore
-        if( (adjustedData[i] > 0) && (adjustedData[i] < smallestValue) ) {
-          // we have a new smallest range that is not calibration; record
-          smallestValue = adjustedData[i];
-          focusX = i % imageWidth;
-          focusY = i / imageWidth;
-        }
-        */
+        
       } 
       prettyPrint(adjustedData); 
 
@@ -206,22 +200,18 @@ void loop()
 
         // do not process the edges: x, y == 0 or x,y == 7  
         if( (locX != 0) && (locY !=0) && (locX != (imageWidth - 1)) && (locY != (imageWidth - 1) ) ) {
-          // test for the smallest value
+          
+          // test for the smallest value that is valid
+         if( (adjustedData[i] > 0) && (adjustedData[i] < smallestValue) &&
+            (validate(i, adjustedData) == true) ) {
 
- //        if( (adjustedData[testLocation] > 0) && (adjustedData[testLocation] < smallestValue) 
- //          && ( (validate(testLocation, adjustedData) == true) ) ) {
-
-          if( (adjustedData[i] > 0) && (adjustedData[i] < smallestValue) ) {
-            smallestValue = adjustedData[i];
-            focusX = imageWidth -1 - (i % imageWidth);
-            focusY = i / imageWidth;
+                focusX = imageWidth -1 - (i % imageWidth);
+                focusY = i / imageWidth;
+                smallestValue = adjustedData[i];
           }
         }   
-
-
       }
       
-
       // print out focus value found
       Serial.print("\nFocus on x = ");
       Serial.printf("%-5d", focusX);
@@ -242,7 +232,7 @@ void loop()
     }
   }
   delay(5); //Small delay between polling
-  delay(8000);  // longer delay to ponder results
+//  delay(8000);  // longer delay to ponder results
 }
 
 // function to pretty print data to serial port
@@ -279,15 +269,21 @@ void moveTerminalCursorDown(int numlines) {
 }
 
 // function to validate that a value is surrounded by valid values
-bool validate(uint32_t location, int32_t dataArray[]) {
+bool validate(int location, int32_t dataArray[]) {
   const int VALID_SCORE_MINIMUM = 8;
+
   int score = 0;
-  uint32_t locX, locY;
+  int locX, locY, loc;
   locY = location/imageWidth;
-  locX = location - locY;
-  for(int yIndex = locY - 1; yIndex = locY + 1; locY++) {
-    for(int xIndex = locX - 1; xIndex = locX + 1; locX++) {
-      if(dataArray[(locY * imageWidth + locX)] > 0) { // valid value
+  locX = location % imageWidth;
+
+  for(int yIndex = -1; yIndex <= 1; yIndex++) {
+    for(int xIndex = -1; xIndex <= 1; xIndex++) {
+
+      // determine the location in the dataArray of value to test for validity
+      loc = ((locY + yIndex) * imageWidth) + (locX + xIndex);
+
+      if(dataArray[loc] > 0) { // valid value
         score++;
       }
     }
@@ -297,4 +293,5 @@ bool validate(uint32_t location, int32_t dataArray[]) {
   } else {
     return false;
   }
+
 }
