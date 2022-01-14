@@ -17,6 +17,7 @@
   Author: Bob Glicksman, Jim Schrempp
   Date: 1/14/22
     
+  rev 0.9.  Added Eye Servo control. Code still runs without eye servo board.
   rev 0.8.  Filter out spurious data readings by making sure that adjacent pixel values
       are valid data. Also fixed the reported smallest range coordinates to correspond
       to the prettyPrint() display coordinates.
@@ -143,11 +144,11 @@ void setup()
     pwm_.setPWM(L_UPPERLID_SERVO, 0, LEFT_UPPER_OPEN);
     pwm_.setPWM(R_UPPERLID_SERVO, 0, RIGHT_UPPER_OPEN);
     moveEyes(0,0);
-    delay(1000);
+    delay(500);
     moveEyes(50,50);
-    delay(1000);
+    delay(500);
     moveEyes(100,100);
-    delay (1000);
+    delay (500);
 
 
   // indicate that setup() is complete
