@@ -186,7 +186,7 @@ void loop()
         secondTable[i] = measurementData.nb_target_detected[i];
         secondTableTitle = "num targets";
 
-        if( (statusCode != 5) && (statusCode != 9)) { // TOF measurement is bad
+        if( (statusCode != 5) && (statusCode != 9) && (statusCode != 6)) { // TOF measurement is bad
           adjustedData[i] = -1;
 
         } else if ( (measuredData == 0) || (measuredData > MAX_CALIBRATION) ) 
