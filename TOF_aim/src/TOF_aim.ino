@@ -245,11 +245,11 @@ void loop()
       
       // print out focus value found
       Serial.print("\nFocus on x = ");
-      Serial.printf("%-5d", focusX);
+      Serial.printf("%-5ld", focusX);
       Serial.print(" y = ");
-      Serial.printf("%-5d", focusY);
+      Serial.printf("%-5ld", focusY);
       Serial.print(" range = ");
-      Serial.printf("%-5d", smallestValue);
+      Serial.printf("%-5ld", smallestValue);
       Serial.println();
       Serial.println();
       Serial.println();
@@ -287,7 +287,7 @@ void prettyPrint(int32_t dataArray[]) {
       Serial.print("\t");
 
       // XXXX changed to format print
-      Serial.printf("%-5d", dataArray[x + y]);
+      Serial.printf("%-5ld", dataArray[x + y]);
     }
     Serial.println();
 
