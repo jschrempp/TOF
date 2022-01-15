@@ -83,6 +83,8 @@ void setup()
 
   Wire.begin(); //This resets to 100kHz I2C
   Wire.setClock(400000); //Sensor has max I2C freq of 400kHz 
+
+  moveEyes(50,50); //back straight ahead in case they are left in an odd position
   
   Serial.println("Initializing sensor board. This can take up to 10s. Please wait.");
   if (myImager.begin() == false)
@@ -105,7 +107,8 @@ void setup()
   // myImager.setSharpenerPercent(20);
   // myImager.setTargetOrder(SF_VL53L5CX_TARGET_ORDER::CLOSEST);
   // myImager.setTargetOrder(SF_VL53L5CX_TARGET_ORDER::STRONGEST);
-  
+
+    myImager.setRangingFrequency(8);
 
   myImager.startRanging();
 
@@ -183,7 +186,7 @@ void loop()
         secondTable[i] = measurementData.nb_target_detected[i];
         secondTableTitle = "num targets";
 
-        if( (statusCode != 5) && (statusCode != 9)) { // TOF measurement is bad
+        if( (statusCode != 5) && (statusCode != 9) && (statusCode != 6)) { // TOF measurement is bad
           adjustedData[i] = -1;
 
         } else if ( (measuredData == 0) || (measuredData > MAX_CALIBRATION) ) 
@@ -242,11 +245,11 @@ void loop()
       
       // print out focus value found
       Serial.print("\nFocus on x = ");
-      Serial.printf("%-5d", focusX);
+      Serial.printf("%-5ld", focusX);
       Serial.print(" y = ");
-      Serial.printf("%-5d", focusY);
+      Serial.printf("%-5ld", focusY);
       Serial.print(" range = ");
-      Serial.printf("%-5d", smallestValue);
+      Serial.printf("%-5ld", smallestValue);
       Serial.println();
       Serial.println();
       Serial.println();
@@ -260,8 +263,13 @@ void loop()
 
         //decide where to point the eyes
         // x,y 0-100
-        moveEyes(focusX * 10 ,focusY * 10);
-
+        if ((focusX > 0) && (focusY > 0)) {
+            int xPos = 100 - ((focusX +1) * 15);
+            int yPos = 100 - ((focusY +1) * 15);
+            moveEyes(xPos , yPos);
+        } else {
+            moveEyes(50,50);
+        }
     }
   }
   delay(5); //Small delay between polling
@@ -279,7 +287,7 @@ void prettyPrint(int32_t dataArray[]) {
       Serial.print("\t");
 
       // XXXX changed to format print
-      Serial.printf("%-5d", dataArray[x + y]);
+      Serial.printf("%-5ld", dataArray[x + y]);
     }
     Serial.println();
 
