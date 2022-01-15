@@ -17,6 +17,7 @@
   Author: Bob Glicksman, Jim Schrempp
   Date: 1/14/22
     
+  rev 0.9.  Added Eye Servo control. Code still runs without eye servo board.
   rev 0.8.  Filter out spurious data readings by making sure that adjacent pixel values
       are valid data. Also fixed the reported smallest range coordinates to correspond
       to the prettyPrint() display coordinates.
@@ -35,6 +36,19 @@
 #include <Wire.h>
 
 #include <SparkFun_VL53L5CX_Library.h> //http://librarymanager/All#SparkFun_VL53L5CX
+
+#include <Adafruit_PWMServoDriver.h>
+#include <eyeservosettings.h>
+
+Adafruit_PWMServoDriver pwm_; 
+// Servo Numbers for the Servo Driver board
+#define X_SERVO 0
+#define Y_SERVO 1
+#define L_UPPERLID_SERVO 2
+#define L_LOWERLID_SERVO 3
+#define R_UPPERLID_SERVO 4
+#define R_LOWERLID_SERVO 5
+
 
 // used in main loop to move cursor to the top of the displayed table
 #define CURSOR_RESET_ROWS 22
@@ -120,7 +134,21 @@ void setup()
     prettyPrint(calibration);
     Serial.println("End of calibration data\n");
   }
-
+    
+    // set up eyes and have the lids open
+    pwm_ = Adafruit_PWMServoDriver();
+    pwm_.begin(); 
+    pwm_.setPWMFreq(60);  // Analog servos run at ~60 Hz updates
+    pwm_.setPWM(L_LOWERLID_SERVO, 0, LEFT_LOWER_OPEN);
+    pwm_.setPWM(R_LOWERLID_SERVO, 0, RIGHT_LOWER_OPEN);
+    pwm_.setPWM(L_UPPERLID_SERVO, 0, LEFT_UPPER_OPEN);
+    pwm_.setPWM(R_UPPERLID_SERVO, 0, RIGHT_UPPER_OPEN);
+    moveEyes(0,0);
+    delay(500);
+    moveEyes(50,50);
+    delay(500);
+    moveEyes(100,100);
+    delay (500);
 
 
   // indicate that setup() is complete
@@ -229,6 +257,11 @@ void loop()
 
       // XXX overwrite the previous display
       moveTerminalCursorUp(CURSOR_RESET_ROWS);
+
+        //decide where to point the eyes
+        // x,y 0-100
+        moveEyes(focusX * 10 ,focusY * 10);
+
     }
   }
   delay(5); //Small delay between polling
@@ -268,6 +301,7 @@ void moveTerminalCursorDown(int numlines) {
   Serial.print("\r");
 }
 
+
 // function to validate that a value is surrounded by valid values
 bool validate(int location, int32_t dataArray[]) {
   const int VALID_SCORE_MINIMUM = 8;
@@ -293,5 +327,14 @@ bool validate(int location, int32_t dataArray[]) {
   } else {
     return false;
   }
+}
+
+void moveEyes (int x, int y){
+
+    double xPos = map(x, 0, 100, X_POS_MID + X_POS_LEFT_OFFSET, X_POS_MID + X_POS_RIGHT_OFFSET);
+    double yPos = map(y, 0, 100, Y_POS_MID + Y_POS_DOWN_OFFSET, Y_POS_MID + Y_POS_UP_OFFSET);
+
+    pwm_.setPWM(X_SERVO, 0, xPos);
+    pwm_.setPWM(Y_SERVO, 0, yPos);   
 
 }
