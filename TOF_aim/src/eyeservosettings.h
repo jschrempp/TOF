@@ -48,6 +48,9 @@
   #define RIGHT_LOWER_OPEN 256
 
 #endif
+
+#ifdef SETTINGS_BOBG
+
 #define X_POS_MID 473
 #define X_POS_LEFT_OFFSET -112
 #define X_POS_RIGHT_OFFSET 135
