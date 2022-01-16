@@ -223,7 +223,23 @@ void loop()
       // XXXX New criteria (v 0.8+ for establishing the smallest valid distance)
       //  Walk through the adjustedData array except for the edges.  For each possible
       //    smallest value found, check that surrounding values asre valid.
-      
+
+      // do not process the edges: x, y == 0 or x,y == 7  
+      for (int i = 1; i < imageWidth-1; i++) {
+          for (int j = 1; j < imageWidth-1; j++) {
+
+                int thisZone = i*imageWidth + j;
+                // test for the smallest value that is valid
+                if( (adjustedData[thisZone] > 0) && (adjustedData[thisZone] < smallestValue) &&
+                    (validate(thisZone, adjustedData) == true) ) {
+
+                    focusX = i;
+                    focusY = j;
+                    smallestValue = adjustedData[thisZone];
+                }
+          }
+      }
+      /*
       for(int i = 0; i < imageResolution; i++) {
         // extract the x and y values of the array location
         locX = i % imageWidth;
@@ -232,6 +248,7 @@ void loop()
         // do not process the edges: x, y == 0 or x,y == 7  
         if( (locX != 0) && (locY !=0) && (locX != (imageWidth - 1)) && (locY != (imageWidth - 1) ) ) {
           
+
           // test for the smallest value that is valid
          if( (adjustedData[i] > 0) && (adjustedData[i] < smallestValue) &&
             (validate(i, adjustedData) == true) ) {
@@ -242,6 +259,7 @@ void loop()
           }
         }   
       }
+      */
       
       // print out focus value found
       Serial.print("\nFocus on x = ");
