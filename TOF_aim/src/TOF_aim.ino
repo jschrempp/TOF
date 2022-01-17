@@ -15,8 +15,9 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman, Jim Schrempp
-  Date: 1/14/22
-    
+  Date: 1/16/22
+
+  rev 1.0.  Second table print is our internal zone score
   rev 0.9.  Added Eye Servo control. Code still runs without eye servo board.
   rev 0.8.  Filter out spurious data readings by making sure that adjacent pixel values
       are valid data. Also fixed the reported smallest range coordinates to correspond
@@ -49,10 +50,6 @@ Adafruit_PWMServoDriver pwm_;
 #define R_UPPERLID_SERVO 4
 #define R_LOWERLID_SERVO 5
 
-
-// used in main loop to move cursor to the top of the displayed table
-#define CURSOR_RESET_ROWS 22
-
 // use D7 LED for status
 const int LED_PIN = D7;
 
@@ -78,7 +75,7 @@ void setup()
   
   Serial.begin(115200);
   delay(1000);
-  moveTerminalCursorDown(CURSOR_RESET_ROWS);
+  moveTerminalCursorDown(20);
   Serial.println("SparkFun VL53L5CX Imager Example");
 
   Wire.begin(); //This resets to 100kHz I2C
@@ -160,11 +157,16 @@ void setup()
 
 void loop()
 {
-  int32_t measuredData, temp, smallestValue, locX, locY, focusX, focusY;
+  int32_t measuredData, temp, smallestValue, focusX, focusY;
   uint8_t statusCode;
   int32_t adjustedData[imageResolution];
   int32_t secondTable[imageResolution];   // second table to print out
   String secondTableTitle = ""; // will hold title of second table 
+
+  // initialize second table
+  for (int i = 0; i<imageResolution; i++) {
+      secondTable[i] = 0;
+  }
   
   //Poll sensor for new data.  Adjust if close to calibration value
   
@@ -183,8 +185,6 @@ void loop()
         // process the status code, only good data if status code is 5 or 9
         statusCode = measurementData.target_status[i];
         measuredData = measurementData.distance_mm[i];
-        secondTable[i] = measurementData.nb_target_detected[i];
-        secondTableTitle = "num targets";
 
         if( (statusCode != 5) && (statusCode != 9) && (statusCode != 6)) { // TOF measurement is bad
           adjustedData[i] = -1;
@@ -224,42 +224,26 @@ void loop()
       //  Walk through the adjustedData array except for the edges.  For each possible
       //    smallest value found, check that surrounding values asre valid.
 
+      secondTableTitle = "zone score";
       // do not process the edges: x, y == 0 or x,y == 7  
-      for (int i = 1; i < imageWidth-1; i++) {
-          for (int j = 1; j < imageWidth-1; j++) {
+      for (int y = 1; y < imageWidth-1; y++) {
+          for (int x = 1; x < imageWidth-1; x++) {
 
-                int thisZone = i*imageWidth + j;
-                // test for the smallest value that is valid
+                int thisZone = y*imageWidth + x;
+                int score = scoreZone(thisZone, adjustedData);
+                secondTable[thisZone] = score; 
+
+                // test for the smallest value that is a significant zone
                 if( (adjustedData[thisZone] > 0) && (adjustedData[thisZone] < smallestValue) &&
-                    (validate(thisZone, adjustedData) == true) ) {
+                    (validate(score) == true) ) {
 
-                    focusX = i;
-                    focusY = j;
+                    focusX = x;
+                    focusY = y;
                     smallestValue = adjustedData[thisZone];
+
                 }
           }
       }
-      /*
-      for(int i = 0; i < imageResolution; i++) {
-        // extract the x and y values of the array location
-        locX = i % imageWidth;
-        locY = i / imageWidth;
-
-        // do not process the edges: x, y == 0 or x,y == 7  
-        if( (locX != 0) && (locY !=0) && (locX != (imageWidth - 1)) && (locY != (imageWidth - 1) ) ) {
-          
-
-          // test for the smallest value that is valid
-         if( (adjustedData[i] > 0) && (adjustedData[i] < smallestValue) &&
-            (validate(i, adjustedData) == true) ) {
-
-                focusX = imageWidth -1 - (i % imageWidth);
-                focusY = i / imageWidth;
-                smallestValue = adjustedData[i];
-          }
-        }   
-      }
-      */
       
       // print out focus value found
       Serial.print("\nFocus on x = ");
@@ -277,13 +261,13 @@ void loop()
       Serial.println();
 
       // XXX overwrite the previous display
-      moveTerminalCursorUp(CURSOR_RESET_ROWS);
+      moveTerminalCursorUp(22);
 
         //decide where to point the eyes
         // x,y 0-100
         if ((focusX > 0) && (focusY > 0)) {
-            int xPos = 100 - ((focusX +1) * 15);
-            int yPos = 100 - ((focusY +1) * 15);
+            int xPos = ((focusX +1) * 15);
+            int yPos = 100-((focusY +1) * 15);
             moveEyes(xPos , yPos);
         } else {
             moveEyes(50,50);
@@ -303,14 +287,10 @@ void prettyPrint(int32_t dataArray[]) {
 
     for (int x = imageWidth - 1 ; x >= 0 ; x--) {
       Serial.print("\t");
-
-      // XXXX changed to format print
       Serial.printf("%-5ld", dataArray[x + y]);
     }
     Serial.println();
-
   } 
-  // Serial.println();
 }
 
 // function to move the terminal cursor back up to overwrite previous data printout
@@ -327,15 +307,17 @@ void moveTerminalCursorDown(int numlines) {
   Serial.print("\r");
 }
 
-
 // function to validate that a value is surrounded by valid values
-bool validate(int location, int32_t dataArray[]) {
-  const int VALID_SCORE_MINIMUM = 8;
-
+int scoreZone(int location, int32_t dataArray[]){
   int score = 0;
   int locX, locY, loc;
   locY = location/imageWidth;
   locX = location % imageWidth;
+
+  if ((locX == 0) || (locX == imageWidth) || (locY == 0) || (locY == imageWidth)){
+      // we don't handle the edges of the matrix
+      return 0;
+  }
 
   for(int yIndex = -1; yIndex <= 1; yIndex++) {
     for(int xIndex = -1; xIndex <= 1; xIndex++) {
@@ -348,6 +330,14 @@ bool validate(int location, int32_t dataArray[]) {
       }
     }
   }
+  return score;
+}
+
+
+// function to decide if a zone is good enough for focus
+bool validate(int score) {
+  const int VALID_SCORE_MINIMUM = 8;
+  
   if(score >= VALID_SCORE_MINIMUM) {
     return true;  
   } else {
