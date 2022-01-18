@@ -15,8 +15,9 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman, Jim Schrempp
-  Date: 1/16/22
+  Date: 1/17/22
 
+  rev 1.1   used map function for x/y to eye position
   rev 1.0.  Second table print is our internal zone score
   rev 0.9.  Added Eye Servo control. Code still runs without eye servo board.
   rev 0.8.  Filter out spurious data readings by making sure that adjacent pixel values
@@ -266,9 +267,9 @@ void loop()
         //decide where to point the eyes
         // x,y 0-100
         if ((focusX > 0) && (focusY > 0)) {
-            int xPos = ((focusX +1) * 15);
-            int yPos = 100-((focusY +1) * 15);
-            moveEyes(xPos , yPos);
+            int xPos = map(focusX,1,6,0,100);   
+            int yPos = map(focusY,1,6,100,0);  
+            moveEyes(xPos  , yPos);
         } else {
             moveEyes(50,50);
         }
@@ -336,7 +337,7 @@ int scoreZone(int location, int32_t dataArray[]){
 
 // function to decide if a zone is good enough for focus
 bool validate(int score) {
-  const int VALID_SCORE_MINIMUM = 8;
+  const int VALID_SCORE_MINIMUM = 6;
   
   if(score >= VALID_SCORE_MINIMUM) {
     return true;  
