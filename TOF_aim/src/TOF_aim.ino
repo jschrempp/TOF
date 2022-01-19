@@ -15,8 +15,9 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman, Jim Schrempp
-  Date: 1/17/22
+  Date: 1/18/22
 
+  rev 1.2   averagedistZone function added. Also moved processMeasuredData to its own function
   rev 1.1   used map function for x/y to eye position
   rev 1.0.  Second table print is our internal zone score
   rev 0.9.  Added Eye Servo control. Code still runs without eye servo board.
@@ -158,8 +159,7 @@ void setup()
 
 void loop()
 {
-  int32_t measuredData, temp, smallestValue, focusX, focusY;
-  uint8_t statusCode;
+  int32_t smallestValue, focusX, focusY;
   int32_t adjustedData[imageResolution];
   int32_t secondTable[imageResolution];   // second table to print out
   String secondTableTitle = ""; // will hold title of second table 
@@ -181,58 +181,28 @@ void loop()
       focusY = -255;  // code for no focus determined
 
       // process the measured data
-      for(int i = 0; i < imageResolution; i++) 
-      {
-        // process the status code, only good data if status code is 5 or 9
-        statusCode = measurementData.target_status[i];
-        measuredData = measurementData.distance_mm[i];
-
-        if( (statusCode != 5) && (statusCode != 9) && (statusCode != 6)) { // TOF measurement is bad
-          adjustedData[i] = -1;
-
-        } else if ( (measuredData == 0) || (measuredData > MAX_CALIBRATION) ) 
-        { //data out of range
-            
-          adjustedData[i] = -2;  // indicate out of range data
-
-        } else 
-        { // data is good and in range, check if background
-          
-          // check new data against calibration value
-          temp = measuredData - calibration[i];
-          
-          // take the absolute value
-          if(temp < 0) {
-            temp = -temp;
-          }
-
-          if(temp <= NOISE_RANGE) 
-          { // zero out noise  
-              
-            adjustedData[i] = -3; // data is background; ignore
-          } 
-          else 
-          {
-            adjustedData[i] = (int16_t) measuredData;
-          }
-
-        }
-        
-      } 
-      prettyPrint(adjustedData); 
+      processMeasuredData(measurementData, adjustedData);
+      
+      prettyPrint(adjustedData);
 
       // XXXX New criteria (v 0.8+ for establishing the smallest valid distance)
       //  Walk through the adjustedData array except for the edges.  For each possible
       //    smallest value found, check that surrounding values asre valid.
 
-      secondTableTitle = "zone score";
-      // do not process the edges: x, y == 0 or x,y == 7  
-      for (int y = 1; y < imageWidth-1; y++) {
-          for (int x = 1; x < imageWidth-1; x++) {
+        secondTableTitle = "average distance";
+        // do not process the edges: x, y == 0 or x,y == 7  
+        for (int y = 1; y < imageWidth-1; y++) {
+            for (int x = 1; x < imageWidth-1; x++) {
 
                 int thisZone = y*imageWidth + x;
+
+                // Get the average distance of this zone
+                int avgDistThisZone = avgdistZone(thisZone, adjustedData);
+
+                secondTable[thisZone] = avgDistThisZone; 
+
                 int score = scoreZone(thisZone, adjustedData);
-                secondTable[thisZone] = score; 
+
 
                 // test for the smallest value that is a significant zone
                 if( (adjustedData[thisZone] > 0) && (adjustedData[thisZone] < smallestValue) &&
@@ -243,8 +213,9 @@ void loop()
                     smallestValue = adjustedData[thisZone];
 
                 }
-          }
-      }
+            }
+        }
+
       
       // print out focus value found
       Serial.print("\nFocus on x = ");
@@ -276,7 +247,7 @@ void loop()
     }
   }
   delay(5); //Small delay between polling
-//  delay(8000);  // longer delay to ponder results
+  // delay(8000);  // longer delay to ponder results
 }
 
 // function to pretty print data to serial port
@@ -334,6 +305,37 @@ int scoreZone(int location, int32_t dataArray[]){
   return score;
 }
 
+// function to validate that a value is surrounded by valid values
+int avgdistZone(int location, int32_t distance[]){
+    int totalDist = 0;
+    int numZones = 0;
+    int avgDist = 0;
+    int locX, locY, loc;
+    locY = location/imageWidth;
+    locX = location % imageWidth;
+
+    if ((locX == 0) || (locX == imageWidth) || (locY == 0) || (locY == imageWidth)){
+        // we don't handle the edges of the matrix
+        return distance[location];
+    }
+
+    avgDist = distance[location];
+    if (distance[location] > 0) { 
+        for(int yIndex = -1; yIndex <= 1; yIndex++) {
+            for(int xIndex = -1; xIndex <= 1; xIndex++) {
+
+                // determine the location in the dataArray of value to test for validity
+                loc = ((locY + yIndex) * imageWidth) + (locX + xIndex);
+                if (distance[loc] > 0 ) {
+                    totalDist += distance[loc] ;
+                    numZones++;
+                }
+            }
+        }
+        avgDist = totalDist / numZones;
+    } 
+    return avgDist;
+}
 
 // function to decide if a zone is good enough for focus
 bool validate(int score) {
@@ -355,3 +357,49 @@ void moveEyes (int x, int y){
     pwm_.setPWM(Y_SERVO, 0, yPos);   
 
 }
+
+// process the measured data
+void processMeasuredData(VL53L5CX_ResultsData measurementData, int32_t adjustedData[]) { 
+    int statusCode = 0;
+    int measuredData = 0;
+    int32_t temp = 0;
+
+      for(int i = 0; i < imageResolution; i++) 
+      {
+        // process the status code, only good data if status code is 5 or 9
+        statusCode = measurementData.target_status[i];
+        measuredData = measurementData.distance_mm[i];
+
+        if( (statusCode != 5) && (statusCode != 9) && (statusCode != 6)) { // TOF measurement is bad
+          adjustedData[i] = -1;
+
+        } else if ( (measuredData == 0) || (measuredData > MAX_CALIBRATION) ) 
+        { //data out of range
+            
+          adjustedData[i] = -2;  // indicate out of range data
+
+        } else 
+        { // data is good and in range, check if background
+          
+          // check new data against calibration value
+          temp = measuredData - calibration[i];
+          
+          // take the absolute value
+          if(temp < 0) {
+            temp = -temp;
+          }
+
+          if(temp <= NOISE_RANGE) 
+          { // zero out noise  
+              
+            adjustedData[i] = -3; // data is background; ignore
+          } 
+          else 
+          {
+            adjustedData[i] = (int16_t) measuredData;
+          }
+
+        }
+        
+      }
+} 
