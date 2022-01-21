@@ -1,0 +1,10 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+    "settings": {
+        "cortex-debug.openocdPath": "${command:particle.getDebuggerOpenocdPath}"
+    }
+}
