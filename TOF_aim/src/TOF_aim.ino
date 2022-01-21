@@ -15,8 +15,9 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman, Jim Schrempp
-  Date: 1/20/22
+  Date: 1/21/22
 
+  rev 1.4   eye lids now open when there is a focus and close otherwise
   rev 1.3   merged in eyeServo
   rev 1.2   averagedistZone function added. Also moved processMeasuredData to its own function
   rev 1.1   used map function for x/y to eye position
