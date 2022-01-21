@@ -15,9 +15,8 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman, Jim Schrempp
-  Date: 1/20/22
+  Date: 1/18/22
 
-  rev 1.3   merged in eyeServo
   rev 1.2   averagedistZone function added. Also moved processMeasuredData to its own function
   rev 1.1   used map function for x/y to eye position
   rev 1.0.  Second table print is our internal zone score
@@ -58,7 +57,7 @@ const int LED_PIN = D7;
 
 // noise range in measured data.  Anything within +/- 50 of the calibrations is noise
 const uint16_t NOISE_RANGE = 50;
-const uint16_t MAX_CALIBRATION = 2000;  // anything greater is set to 2000 mm
+const uint16_t MAX_CALIBRATION = 4000;  // anything greater is set to 2000 mm
 
 SparkFun_VL53L5CX myImager;
 VL53L5CX_ResultsData measurementData; // Result data class structure, 1356 byes of RAM
@@ -158,8 +157,10 @@ void setup(){
 }
 
 void loop() {
-    int32_t smallestValue, focusX, focusY;
+    int32_t smallestValue, zoneFocusX, zoneFocusY;
+    float focusX, focusY;
     int32_t adjustedData[imageResolution];
+    int32_t averageDistance[imageResolution];
     int32_t secondTable[imageResolution];   // second table to print out
     String secondTableTitle = ""; // will hold title of second table 
 
@@ -176,8 +177,10 @@ void loop() {
         {
             // initialize findings
             smallestValue = MAX_CALIBRATION; // start with the max allowed
-            focusX = -255;  // code for no focus determined
-            focusY = -255;  // code for no focus determined
+            zoneFocusX = -255;  // code for no focus determined
+            zoneFocusY = -255;  // code for no focus determined
+            focusX = -255;
+            focusY = -255;
 
             // process the measured data
             processMeasuredData(measurementData, adjustedData);
@@ -188,7 +191,6 @@ void loop() {
             //  Walk through the adjustedData array except for the edges.  For each possible
             //    smallest value found, check that surrounding values asre valid.
 
-            secondTableTitle = "average distance";
             // do not process the edges: x, y == 0 or x,y == 7  
             for (int y = 1; y < imageWidth-1; y++) {
                 for (int x = 1; x < imageWidth-1; x++) {
@@ -198,36 +200,89 @@ void loop() {
                     // Get the average distance of this zone
                     int avgDistThisZone = avgdistZone(thisZone, adjustedData);
 
-                    secondTable[thisZone] = avgDistThisZone; 
+                    averageDistance[thisZone] = avgDistThisZone; 
 
                     int score = scoreZone(thisZone, adjustedData);
 
 
                     // test for the smallest value that is a significant zone
-                    if( (adjustedData[thisZone] > 0) && (adjustedData[thisZone] < smallestValue) &&
+                    // XXX was adjustedData
+                    if( (averageDistance[thisZone] > 0) && (averageDistance[thisZone] < smallestValue) &&
                         (validate(score) == true) ) {
 
-                        focusX = x;
-                        focusY = y;
-                        smallestValue = adjustedData[thisZone];
+                        zoneFocusX = x;
+                        zoneFocusY = y;
+                        smallestValue = averageDistance[thisZone];
 
                     }
                 }
             }
 
+            // Find all zones within tolerance of the smallest value
+            int32_t closeToFocusTable[imageResolution]; 
+            for (int i=0; i<imageResolution; i++){
+                closeToFocusTable[i] = -1;
+            }
+            for (int y = 1; y < imageWidth-1; y++) {
+                for (int x = 1; x < imageWidth-1; x++) {
+
+                    int thisZone = y*imageWidth + x;
+
+                    if ( (abs(averageDistance[thisZone] - smallestValue) < 100 ) && 
+                         (averageDistance[thisZone] > 0 )  ) {
+
+                        closeToFocusTable[thisZone] = averageDistance[thisZone];
+
+                    }
+
+                }
+            }
+
+            // find first zone, scanning left to right, top to bottom
+            for (int x = 1; x < imageWidth-1; x++) {
+                for (int y = 1; y < imageWidth-1; y++) {
+
+                    int thisZone = y*imageWidth + x;
+
+                    if (closeToFocusTable[thisZone] > 0){
+                        zoneFocusX = x;
+                        zoneFocusY = y;
+                        x = 1000;
+                        y = 1000;
+                    }
+                }
+            }
+
+            // adjust x to middle of blob
+
+            // find extent of the blob top
+            int maxZoneFocusX = zoneFocusX;
+            for (int x = zoneFocusX; x < imageWidth-1; x++) {
+
+                    int thisZone = zoneFocusY*imageWidth + x;
+
+                    if (closeToFocusTable[thisZone] > 0){
+                        maxZoneFocusX = x;
+                    }
+            }
+            // focus on middle of blob top
+            focusX = (maxZoneFocusX + zoneFocusX)/2;
+            focusY = zoneFocusY;
+
+
             // print out focus value found
             Serial.print("\nFocus on x = ");
-            Serial.printf("%-5ld", focusX);
+            Serial.printf("%-5ld", zoneFocusX);
             Serial.print(" y = ");
-            Serial.printf("%-5ld", focusY);
+            Serial.printf("%-5ld", zoneFocusY);
             Serial.print(" range = ");
             Serial.printf("%-5ld", smallestValue);
             Serial.println();
             Serial.println();
             Serial.println();
 
-            Serial.println(secondTableTitle);
-            prettyPrint(secondTable);
+            Serial.println("close to focus");
+            prettyPrint(closeToFocusTable);
             Serial.println();
 
             // XXX overwrite the previous display
@@ -236,8 +291,8 @@ void loop() {
             //decide where to point the eyes
             // x,y 0-100
             if ((focusX > 0) && (focusY > 0)) {
-                int xPos = map(focusX,1,6,0,100);   
-                int yPos = map(focusY,1,6,100,0);  
+                int xPos = map(focusX, 1.0,6.0, 0.0,100.0);   
+                int yPos = map(focusY, 1.0,6.0, 100.0,0.0);  
                 moveEyes(xPos  , yPos);
             } else {
                 moveEyes(50,50);
