@@ -86,7 +86,6 @@ void setup(){
     Wire.begin(); //This resets to 100kHz I2C
     Wire.setClock(400000); //Sensor has max I2C freq of 400kHz 
 
-    moveEyes(50,50); //back straight ahead in case they are left in an odd position
     
     Serial.println("Initializing sensor board. This can take up to 10s. Please wait.");
     if (myImager.begin() == false) {
@@ -148,12 +147,14 @@ void setup(){
     pwm_.setPWM(R_LOWERLID_SERVO, 0, RIGHT_LOWER_OPEN);
     pwm_.setPWM(L_UPPERLID_SERVO, 0, LEFT_UPPER_OPEN);
     pwm_.setPWM(R_UPPERLID_SERVO, 0, RIGHT_UPPER_OPEN);
+    moveEyeLids(100);
     moveEyes(0,0);
     delay(500);
     moveEyes(50,50);
     delay(500);
     moveEyes(100,100);
     delay (500);
+    moveEyeLids(0);
 
 
     // indicate that setup() is complete
@@ -242,9 +243,11 @@ void loop() {
             // x,y 0-100
             if ((focusX > 0) && (focusY > 0)) {
                 int xPos = map(focusX,1,6,0,100);   
-                int yPos = map(focusY,1,6,100,0);  
+                int yPos = map(focusY,1,6,100,0);
+                moveEyeLids(100);  
                 moveEyes(xPos  , yPos);
             } else {
+                moveEyeLids(0);
                 moveEyes(50,50);
             }
         }
@@ -365,6 +368,20 @@ void moveEyes (int x, int y){
     pwm_.setPWM(X_SERVO, 0, xPos);
     pwm_.setPWM(Y_SERVO, 0, yPos);   
 
+}
+
+/* ------------------------------ */
+void moveEyeLids(int openPct){
+
+    float leftUpperPos = map(openPct, 0,100, LEFT_UPPER_CLOSED, LEFT_UPPER_OPEN  );
+    float leftLowerPos = map(openPct, 0,100, LEFT_LOWER_CLOSED, LEFT_LOWER_OPEN  );
+    float rightUpperPos = map(openPct, 0,100, RIGHT_UPPER_CLOSED, RIGHT_UPPER_OPEN  );
+    float rightLowerPos = map(openPct, 0,100, RIGHT_LOWER_CLOSED, RIGHT_LOWER_OPEN );
+
+    pwm_.setPWM(L_LOWERLID_SERVO, 0, leftLowerPos);
+    pwm_.setPWM(L_UPPERLID_SERVO, 0, leftUpperPos);
+    pwm_.setPWM(R_LOWERLID_SERVO, 0, rightLowerPos);
+    pwm_.setPWM(R_UPPERLID_SERVO, 0, rightUpperPos);  
 }
 
 /* ------------------------------ */
