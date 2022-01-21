@@ -16,7 +16,7 @@
   
   Author: Bob Glicksman, Jim Schrempp
   Date: 1/21/22
-
+  rev 1.5   eyes now move to position with a number of steps
   rev 1.4   eye lids now open when there is a focus and close otherwise
   rev 1.3   merged in eyeServo
   rev 1.2   averagedistZone function added. Also moved processMeasuredData to its own function
@@ -243,10 +243,14 @@ void loop() {
             //decide where to point the eyes
             // x,y 0-100
             if ((focusX > 0) && (focusY > 0)) {
+                static int xCurrentPos = 50;
+                static int yCurrentPos = 50;
                 int xPos = map(focusX,1,6,0,100);   
                 int yPos = map(focusY,1,6,100,0);
+                xCurrentPos = xCurrentPos + (0.4 * (xPos - xCurrentPos));
+                yCurrentPos = yCurrentPos + (0.4 * (yPos - yCurrentPos));
                 moveEyeLids(100);  
-                moveEyes(xPos  , yPos);
+                moveEyes(xCurrentPos, yCurrentPos);
             } else {
                 moveEyeLids(0);
                 moveEyes(50,50);
