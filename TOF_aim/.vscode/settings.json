@@ -5,7 +5,7 @@
     "files.associations": {
         "*.ino": "cpp"
     },
-    "particle.targetDevice": "TOF_Photon",
+    "particle.targetDevice": "Animatronic2",
     "particle.firmwareVersion": "3.1.0",
     "particle.targetPlatform": "photon"
 }
