@@ -70,7 +70,10 @@ int imageResolution = 0; // read this back from the sensor
 int imageWidth = 0; // read this back from the sensor
 
 
+/* ------------------------------ */
+/* ------------------------------ */
 void setup(){
+    
     // turn on D7 LED to indicate that we are in setup()
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, HIGH);
@@ -86,8 +89,7 @@ void setup(){
     moveEyes(50,50); //back straight ahead in case they are left in an odd position
     
     Serial.println("Initializing sensor board. This can take up to 10s. Please wait.");
-    if (myImager.begin() == false)
-    {
+    if (myImager.begin() == false) {
         Serial.println(F("Sensor not found - check your wiring. Freezing"));
         while (1) ;
     }
@@ -120,17 +122,18 @@ void setup(){
     } while(myImager.isDataReady() != true);
 
     // data is now ready
-    if (myImager.getRangingData(&measurementData)) //Read distance data into array
-    {
+    if (myImager.getRangingData(&measurementData)) { //Read distance data into array
+    
         // read out the measured data into an array
-        for(int i = 0; i < 64; i++)
-        {
+        for(int i = 0; i < 64; i++) {
+        
             calibration[i] = measurementData.distance_mm[i];
 
             // adjust for calibration values being 0 or too long for measurement
             if( (calibration[i] == 0) || (calibration[i] > MAX_CALIBRATION) ) {
                 calibration[i] = MAX_CALIBRATION;
             }
+
         }
         Serial.println("Calibration data:");
         prettyPrint(calibration);
@@ -157,6 +160,8 @@ void setup(){
     digitalWrite(LED_PIN, LOW);
 }
 
+/* ------------------------------ */
+/* ------------------------------ */
 void loop() {
     int32_t smallestValue, focusX, focusY;
     int32_t adjustedData[imageResolution];
@@ -170,10 +175,10 @@ void loop() {
   
     //Poll sensor for new data.  Adjust if close to calibration value
     
-    if (myImager.isDataReady() == true)
-    {
-        if (myImager.getRangingData(&measurementData)) //Read distance data into ST driver array
-        {
+    if (myImager.isDataReady() == true) {
+    
+        if (myImager.getRangingData(&measurementData)) { //Read distance data into ST driver array
+       
             // initialize findings
             smallestValue = MAX_CALIBRATION; // start with the max allowed
             focusX = -255;  // code for no focus determined
@@ -248,6 +253,7 @@ void loop() {
     // delay(8000);  // longer delay to ponder results
 }
 
+/* ------------------------------ */
 // function to pretty print data to serial port
 void prettyPrint(int32_t dataArray[]) {
     //The ST library returns the data transposed from zone mapping shown in datasheet
@@ -262,6 +268,7 @@ void prettyPrint(int32_t dataArray[]) {
     } 
 }
 
+/* ------------------------------ */
 // function to move the terminal cursor back up to overwrite previous data printout
 void moveTerminalCursorUp(int numlines) {
     String cursorUp = String("\033[") + String(numlines) + String("A");
@@ -269,6 +276,7 @@ void moveTerminalCursorUp(int numlines) {
     Serial.print("\r");
 }
 
+/* ------------------------------ */
 // function to move the terminal cursor down to get past previous data printout - used on startup
 void moveTerminalCursorDown(int numlines) {
     String cursorUp = String("\033[") + String(numlines) + String("B");
@@ -276,6 +284,7 @@ void moveTerminalCursorDown(int numlines) {
     Serial.print("\r");
 }
 
+/* ------------------------------ */
 // function to validate that a value is surrounded by valid values
 int scoreZone(int location, int32_t dataArray[]){
     int score = 0;
@@ -283,7 +292,7 @@ int scoreZone(int location, int32_t dataArray[]){
     locY = location/imageWidth;
     locX = location % imageWidth;
 
-    if ((locX == 0) || (locX == imageWidth) || (locY == 0) || (locY == imageWidth)){
+    if ((locX == 0) || (locX == imageWidth) || (locY == 0) || (locY == imageWidth)) {
         // we don't handle the edges of the matrix
         return 0;
     }
@@ -302,6 +311,7 @@ int scoreZone(int location, int32_t dataArray[]){
     return score;
 }
 
+/* ------------------------------ */
 // function to validate that a value is surrounded by valid values
 int avgdistZone(int location, int32_t distance[]){
     int totalDist = 0;
@@ -311,7 +321,7 @@ int avgdistZone(int location, int32_t distance[]){
     locY = location/imageWidth;
     locX = location % imageWidth;
 
-    if ((locX == 0) || (locX == imageWidth) || (locY == 0) || (locY == imageWidth)){
+    if ((locX == 0) || (locX == imageWidth) || (locY == 0) || (locY == imageWidth)) {
         // we don't handle the edges of the matrix
         return distance[location];
     }
@@ -334,6 +344,7 @@ int avgdistZone(int location, int32_t distance[]){
     return avgDist;
 }
 
+/* ------------------------------ */
 // function to decide if a zone is good enough for focus
 bool validate(int score) {
     const int VALID_SCORE_MINIMUM = 6;
@@ -345,6 +356,7 @@ bool validate(int score) {
     }
 }
 
+/* ------------------------------ */
 void moveEyes (int x, int y){
 
     double xPos = map(x, 0, 100, X_POS_MID + X_POS_LEFT_OFFSET, X_POS_MID + X_POS_RIGHT_OFFSET);
@@ -355,14 +367,16 @@ void moveEyes (int x, int y){
 
 }
 
+/* ------------------------------ */
 // process the measured data
 void processMeasuredData(VL53L5CX_ResultsData measurementData, int32_t adjustedData[]) { 
+
     int statusCode = 0;
     int measuredData = 0;
     int32_t temp = 0;
 
-      for(int i = 0; i < imageResolution; i++) 
-      {
+    for(int i = 0; i < imageResolution; i++) {
+      
         // process the status code, only good data if status code is 5 or 9
         statusCode = measurementData.target_status[i];
         measuredData = measurementData.distance_mm[i];
@@ -371,13 +385,13 @@ void processMeasuredData(VL53L5CX_ResultsData measurementData, int32_t adjustedD
             
             adjustedData[i] = -1;
 
-        } else if ( (measuredData == 0) || (measuredData > MAX_CALIBRATION) ) 
-        {   //data out of range
+        } else if ( (measuredData == 0) || (measuredData > MAX_CALIBRATION) ) { 
+         //data out of range
                 
             adjustedData[i] = -2;  // indicate out of range data
 
-        } else 
-        {   // data is good and in range, check if background
+        } else  {
+            // data is good and in range, check if background
           
             // check new data against calibration value
             temp = measuredData - calibration[i];
@@ -387,17 +401,17 @@ void processMeasuredData(VL53L5CX_ResultsData measurementData, int32_t adjustedD
                 temp = -temp;
             }
 
-          if(temp <= NOISE_RANGE) 
-          {     // zero out noise  
-              
-                adjustedData[i] = -3; // data is background; ignore
-          } 
-          else 
-          {
-                adjustedData[i] = (int16_t) measuredData;
-          }
+            if(temp <= NOISE_RANGE) { 
+                    // zero out noise  
+                
+                    adjustedData[i] = -3; // data is background; ignore
+            } 
+            else { 
+            
+                    adjustedData[i] = (int16_t) measuredData;
+            }
 
         }
         
-      }
+    }
 } 
