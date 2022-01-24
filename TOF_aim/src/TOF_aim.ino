@@ -15,7 +15,8 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman, Jim Schrempp
-  Date: 1/21/22
+  Date: 1/24/22
+  rev 1.6   smooth eye movement
   rev 1.5   eyes now move to position with a number of steps
   rev 1.4   eye lids now open when there is a focus and close otherwise
   rev 1.3   merged in eyeServo
@@ -254,7 +255,7 @@ void loop() {
             if ((focusX > 0) && (focusY > 0)) {
                 static int xCurrentPos = 50;
                 static int yCurrentPos = 50;
-                int xPos = map(focusX,1,6, 20,80);   
+                int xPos = map(focusX,1,6, 20,90);   
                 int yPos = map(focusY,1,6, 80,20);
                 xCurrentPos = xCurrentPos + (0.1 * (xPos - xCurrentPos));
                 yCurrentPos = yCurrentPos + (0.1 * (yPos - yCurrentPos));
