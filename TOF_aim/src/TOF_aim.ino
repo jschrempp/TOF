@@ -15,7 +15,8 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman, Jim Schrempp
-  Date: 1/27/22
+  Date: 1/29/22
+  rev 1.8   testing VALID_SCORE_MINIMUM = 5
   rev 1.7   resolved bugs in avg and score array transversal
   rev 1.6   smooth eye movement
   rev 1.5   eyes now move to position with a number of steps
@@ -370,7 +371,7 @@ int avgdistZone(int location, int32_t distance[]){
 /* ------------------------------ */
 // function to decide if a zone is good enough for focus
 bool validate(int score) {
-    const int VALID_SCORE_MINIMUM = 3;
+    const int VALID_SCORE_MINIMUM = 5;
     
     if(score >= VALID_SCORE_MINIMUM) {
         return true;  
