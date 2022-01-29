@@ -15,7 +15,9 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman, Jim Schrempp
-  Date: 1/21/22
+  Date: 1/27/22
+  rev 1.7   resolved bugs in avg and score array transversal
+  rev 1.6   smooth eye movement
   rev 1.5   eyes now move to position with a number of steps
   rev 1.4   eye lids now open when there is a focus and close otherwise
   rev 1.3   merged in eyeServo
@@ -109,7 +111,7 @@ void setup(){
     // myImager.setTargetOrder(SF_VL53L5CX_TARGET_ORDER::CLOSEST);
     // myImager.setTargetOrder(SF_VL53L5CX_TARGET_ORDER::STRONGEST);
 
-    myImager.setRangingFrequency(8);
+    myImager.setRangingFrequency(4);
 
     myImager.startRanging();
 
@@ -165,7 +167,9 @@ void setup(){
 /* ------------------------------ */
 /* ------------------------------ */
 void loop() {
-    int32_t smallestValue, focusX, focusY;
+    int32_t smallestValue; 
+    static int32_t focusX = -255;
+    static int32_t  focusY = -255;
     int32_t adjustedData[imageResolution];
     int32_t secondTable[imageResolution];   // second table to print out
     String secondTableTitle = ""; // will hold title of second table 
@@ -195,28 +199,30 @@ void loop() {
             //  Walk through the adjustedData array except for the edges.  For each possible
             //    smallest value found, check that surrounding values asre valid.
 
-            secondTableTitle = "average distance";
+            secondTableTitle = "avgDistThisZone";
             // do not process the edges: x, y == 0 or x,y == 7  
-            for (int y = 1; y < imageWidth-1; y++) {
-                for (int x = 1; x < imageWidth-1; x++) {
+            for (int y = 0; y < imageWidth; y++) {
+                for (int x = 0; x < imageWidth; x++) {
 
                     int thisZone = y*imageWidth + x;
 
                     // Get the average distance of this zone
                     int avgDistThisZone = avgdistZone(thisZone, adjustedData);
 
-                    secondTable[thisZone] = avgDistThisZone; 
 
                     int score = scoreZone(thisZone, adjustedData);
 
 
+                    secondTable[thisZone] = avgDistThisZone; 
+
+
                     // test for the smallest value that is a significant zone
-                    if( (adjustedData[thisZone] > 0) && (adjustedData[thisZone] < smallestValue) &&
+                    if( (avgDistThisZone > 0) && (avgDistThisZone < smallestValue) &&
                         (validate(score) == true) ) {
 
                         focusX = x;
                         focusY = y;
-                        smallestValue = adjustedData[thisZone];
+                        smallestValue = avgDistThisZone;
 
                     }
                 }
@@ -240,22 +246,28 @@ void loop() {
             // XXX overwrite the previous display
             moveTerminalCursorUp(22);
 
-            //decide where to point the eyes
+            
+        }
+    }
+
+    //decide where to point the eyes
+    static long lastEyeUpdateMS = 0;
+    if (millis() - lastEyeUpdateMS > 10){
+            lastEyeUpdateMS = millis();
             // x,y 0-100
-            if ((focusX > 0) && (focusY > 0)) {
+            if ((focusX >= 0) && (focusY >= 0)) {
                 static int xCurrentPos = 50;
                 static int yCurrentPos = 50;
-                int xPos = map(focusX,1,6,0,100);   
-                int yPos = map(focusY,1,6,100,0);
-                xCurrentPos = xCurrentPos + (0.4 * (xPos - xCurrentPos));
-                yCurrentPos = yCurrentPos + (0.4 * (yPos - yCurrentPos));
+                int xPos = map(focusX,1,6, 20,80);   
+                int yPos = map(focusY,1,6, 80,20);
+                xCurrentPos = xCurrentPos + (0.1 * (xPos - xCurrentPos));
+                yCurrentPos = yCurrentPos + (0.1 * (yPos - yCurrentPos));
                 moveEyeLids(100);  
                 moveEyes(xCurrentPos, yCurrentPos);
             } else {
                 moveEyeLids(0);
                 moveEyes(50,50);
             }
-        }
     }
     delay(5); //Small delay between polling
     // delay(8000);  // longer delay to ponder results
@@ -297,22 +309,23 @@ void moveTerminalCursorDown(int numlines) {
 int scoreZone(int location, int32_t dataArray[]){
     int score = 0;
     int locX, locY, loc;
-    locY = location/imageWidth;
-    locX = location % imageWidth;
-
-    if ((locX == 0) || (locX == imageWidth) || (locY == 0) || (locY == imageWidth)) {
-        // we don't handle the edges of the matrix
-        return 0;
-    }
+    int locYInit = location/imageWidth;
+    int locXInit = location % imageWidth;
 
     for(int yIndex = -1; yIndex <= 1; yIndex++) {
         for(int xIndex = -1; xIndex <= 1; xIndex++) {
 
-            // determine the location in the dataArray of value to test for validity
-            loc = ((locY + yIndex) * imageWidth) + (locX + xIndex);
+            locX = locXInit+ xIndex;
+            locY = locYInit + yIndex;
 
-            if(dataArray[loc] > 0) { // valid value
-                score++;
+            if ((locX >= 0) && (locX < imageWidth) && (locY >= 0) && (locY < imageWidth)) {
+
+                // determine the location in the dataArray of value to test for validity
+                loc = (locY * imageWidth) + locX;
+
+                if(dataArray[loc] > 0) { // valid value
+                    score++;
+                }
             }
         }
     }
@@ -326,24 +339,26 @@ int avgdistZone(int location, int32_t distance[]){
     int numZones = 0;
     int avgDist = 0;
     int locX, locY, loc;
-    locY = location/imageWidth;
-    locX = location % imageWidth;
+    int locYInit = location/imageWidth;
+    int locXInit = location % imageWidth;
 
-    if ((locX == 0) || (locX == imageWidth) || (locY == 0) || (locY == imageWidth)) {
-        // we don't handle the edges of the matrix
-        return distance[location];
-    }
 
     avgDist = distance[location];
     if (distance[location] > 0) { 
         for(int yIndex = -1; yIndex <= 1; yIndex++) {
             for(int xIndex = -1; xIndex <= 1; xIndex++) {
 
-                // determine the location in the dataArray of value to test for validity
-                loc = ((locY + yIndex) * imageWidth) + (locX + xIndex);
-                if (distance[loc] > 0 ) {
-                    totalDist += distance[loc] ;
-                    numZones++;
+                locX = locXInit + xIndex;
+                locY = locYInit + yIndex;
+
+                if ((locX >= 0) && (locX < imageWidth) && (locY >= 0) && (locY < imageWidth)) {
+
+                    // determine the location in the dataArray of value to test for validity
+                    loc = (locY * imageWidth) + locX;
+                    if (distance[loc] > 0 ) {
+                        totalDist += distance[loc] ;
+                        numZones++;
+                    }
                 }
             }
         }
@@ -355,7 +370,7 @@ int avgdistZone(int location, int32_t distance[]){
 /* ------------------------------ */
 // function to decide if a zone is good enough for focus
 bool validate(int score) {
-    const int VALID_SCORE_MINIMUM = 6;
+    const int VALID_SCORE_MINIMUM = 3;
     
     if(score >= VALID_SCORE_MINIMUM) {
         return true;  
