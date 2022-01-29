@@ -15,8 +15,12 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman, Jim Schrempp
-  Date: 1/20/22
-
+  Date: 1/29/22
+  rev 1.8   testing VALID_SCORE_MINIMUM = 5
+  rev 1.7   resolved bugs in avg and score array transversal
+  rev 1.6   smooth eye movement
+  rev 1.5   eyes now move to position with a number of steps
+  rev 1.4   eye lids now open when there is a focus and close otherwise
   rev 1.3   merged in eyeServo
   rev 1.2   averagedistZone function added. Also moved processMeasuredData to its own function
   rev 1.1   used map function for x/y to eye position
@@ -86,7 +90,6 @@ void setup(){
     Wire.begin(); //This resets to 100kHz I2C
     Wire.setClock(400000); //Sensor has max I2C freq of 400kHz 
 
-    moveEyes(50,50); //back straight ahead in case they are left in an odd position
     
     Serial.println("Initializing sensor board. This can take up to 10s. Please wait.");
     if (myImager.begin() == false) {
@@ -109,7 +112,7 @@ void setup(){
     // myImager.setTargetOrder(SF_VL53L5CX_TARGET_ORDER::CLOSEST);
     // myImager.setTargetOrder(SF_VL53L5CX_TARGET_ORDER::STRONGEST);
 
-    myImager.setRangingFrequency(8);
+    myImager.setRangingFrequency(4);
 
     myImager.startRanging();
 
@@ -148,12 +151,14 @@ void setup(){
     pwm_.setPWM(R_LOWERLID_SERVO, 0, RIGHT_LOWER_OPEN);
     pwm_.setPWM(L_UPPERLID_SERVO, 0, LEFT_UPPER_OPEN);
     pwm_.setPWM(R_UPPERLID_SERVO, 0, RIGHT_UPPER_OPEN);
+    moveEyeLids(100);
     moveEyes(0,0);
     delay(500);
     moveEyes(50,50);
     delay(500);
     moveEyes(100,100);
     delay (500);
+    moveEyeLids(0);
 
 
     // indicate that setup() is complete
@@ -163,7 +168,9 @@ void setup(){
 /* ------------------------------ */
 /* ------------------------------ */
 void loop() {
-    int32_t smallestValue, focusX, focusY;
+    int32_t smallestValue; 
+    static int32_t focusX = -255;
+    static int32_t  focusY = -255;
     int32_t adjustedData[imageResolution];
     int32_t secondTable[imageResolution];   // second table to print out
     String secondTableTitle = ""; // will hold title of second table 
@@ -193,28 +200,30 @@ void loop() {
             //  Walk through the adjustedData array except for the edges.  For each possible
             //    smallest value found, check that surrounding values asre valid.
 
-            secondTableTitle = "average distance";
+            secondTableTitle = "avgDistThisZone";
             // do not process the edges: x, y == 0 or x,y == 7  
-            for (int y = 1; y < imageWidth-1; y++) {
-                for (int x = 1; x < imageWidth-1; x++) {
+            for (int y = 0; y < imageWidth; y++) {
+                for (int x = 0; x < imageWidth; x++) {
 
                     int thisZone = y*imageWidth + x;
 
                     // Get the average distance of this zone
                     int avgDistThisZone = avgdistZone(thisZone, adjustedData);
 
-                    secondTable[thisZone] = avgDistThisZone; 
 
                     int score = scoreZone(thisZone, adjustedData);
 
 
+                    secondTable[thisZone] = avgDistThisZone; 
+
+
                     // test for the smallest value that is a significant zone
-                    if( (adjustedData[thisZone] > 0) && (adjustedData[thisZone] < smallestValue) &&
+                    if( (avgDistThisZone > 0) && (avgDistThisZone < smallestValue) &&
                         (validate(score) == true) ) {
 
                         focusX = x;
                         focusY = y;
-                        smallestValue = adjustedData[thisZone];
+                        smallestValue = avgDistThisZone;
 
                     }
                 }
@@ -238,16 +247,28 @@ void loop() {
             // XXX overwrite the previous display
             moveTerminalCursorUp(22);
 
-            //decide where to point the eyes
+            
+        }
+    }
+
+    //decide where to point the eyes
+    static long lastEyeUpdateMS = 0;
+    if (millis() - lastEyeUpdateMS > 10){
+            lastEyeUpdateMS = millis();
             // x,y 0-100
-            if ((focusX > 0) && (focusY > 0)) {
-                int xPos = map(focusX,1,6,0,100);   
-                int yPos = map(focusY,1,6,100,0);  
-                moveEyes(xPos  , yPos);
+            if ((focusX >= 0) && (focusY >= 0)) {
+                static int xCurrentPos = 50;
+                static int yCurrentPos = 50;
+                int xPos = map(focusX,1,6, 20,80);   
+                int yPos = map(focusY,1,6, 80,20);
+                xCurrentPos = xCurrentPos + (0.1 * (xPos - xCurrentPos));
+                yCurrentPos = yCurrentPos + (0.1 * (yPos - yCurrentPos));
+                moveEyeLids(100);  
+                moveEyes(xCurrentPos, yCurrentPos);
             } else {
+                moveEyeLids(0);
                 moveEyes(50,50);
             }
-        }
     }
     delay(5); //Small delay between polling
     // delay(8000);  // longer delay to ponder results
@@ -289,22 +310,23 @@ void moveTerminalCursorDown(int numlines) {
 int scoreZone(int location, int32_t dataArray[]){
     int score = 0;
     int locX, locY, loc;
-    locY = location/imageWidth;
-    locX = location % imageWidth;
-
-    if ((locX == 0) || (locX == imageWidth) || (locY == 0) || (locY == imageWidth)) {
-        // we don't handle the edges of the matrix
-        return 0;
-    }
+    int locYInit = location/imageWidth;
+    int locXInit = location % imageWidth;
 
     for(int yIndex = -1; yIndex <= 1; yIndex++) {
         for(int xIndex = -1; xIndex <= 1; xIndex++) {
 
-            // determine the location in the dataArray of value to test for validity
-            loc = ((locY + yIndex) * imageWidth) + (locX + xIndex);
+            locX = locXInit+ xIndex;
+            locY = locYInit + yIndex;
 
-            if(dataArray[loc] > 0) { // valid value
-                score++;
+            if ((locX >= 0) && (locX < imageWidth) && (locY >= 0) && (locY < imageWidth)) {
+
+                // determine the location in the dataArray of value to test for validity
+                loc = (locY * imageWidth) + locX;
+
+                if(dataArray[loc] > 0) { // valid value
+                    score++;
+                }
             }
         }
     }
@@ -318,24 +340,26 @@ int avgdistZone(int location, int32_t distance[]){
     int numZones = 0;
     int avgDist = 0;
     int locX, locY, loc;
-    locY = location/imageWidth;
-    locX = location % imageWidth;
+    int locYInit = location/imageWidth;
+    int locXInit = location % imageWidth;
 
-    if ((locX == 0) || (locX == imageWidth) || (locY == 0) || (locY == imageWidth)) {
-        // we don't handle the edges of the matrix
-        return distance[location];
-    }
 
     avgDist = distance[location];
     if (distance[location] > 0) { 
         for(int yIndex = -1; yIndex <= 1; yIndex++) {
             for(int xIndex = -1; xIndex <= 1; xIndex++) {
 
-                // determine the location in the dataArray of value to test for validity
-                loc = ((locY + yIndex) * imageWidth) + (locX + xIndex);
-                if (distance[loc] > 0 ) {
-                    totalDist += distance[loc] ;
-                    numZones++;
+                locX = locXInit + xIndex;
+                locY = locYInit + yIndex;
+
+                if ((locX >= 0) && (locX < imageWidth) && (locY >= 0) && (locY < imageWidth)) {
+
+                    // determine the location in the dataArray of value to test for validity
+                    loc = (locY * imageWidth) + locX;
+                    if (distance[loc] > 0 ) {
+                        totalDist += distance[loc] ;
+                        numZones++;
+                    }
                 }
             }
         }
@@ -347,7 +371,7 @@ int avgdistZone(int location, int32_t distance[]){
 /* ------------------------------ */
 // function to decide if a zone is good enough for focus
 bool validate(int score) {
-    const int VALID_SCORE_MINIMUM = 6;
+    const int VALID_SCORE_MINIMUM = 5;
     
     if(score >= VALID_SCORE_MINIMUM) {
         return true;  
@@ -365,6 +389,20 @@ void moveEyes (int x, int y){
     pwm_.setPWM(X_SERVO, 0, xPos);
     pwm_.setPWM(Y_SERVO, 0, yPos);   
 
+}
+
+/* ------------------------------ */
+void moveEyeLids(int openPct){
+
+    float leftUpperPos = map(openPct, 0,100, LEFT_UPPER_CLOSED, LEFT_UPPER_OPEN  );
+    float leftLowerPos = map(openPct, 0,100, LEFT_LOWER_CLOSED, LEFT_LOWER_OPEN  );
+    float rightUpperPos = map(openPct, 0,100, RIGHT_UPPER_CLOSED, RIGHT_UPPER_OPEN  );
+    float rightLowerPos = map(openPct, 0,100, RIGHT_LOWER_CLOSED, RIGHT_LOWER_OPEN );
+
+    pwm_.setPWM(L_LOWERLID_SERVO, 0, leftLowerPos);
+    pwm_.setPWM(L_UPPERLID_SERVO, 0, leftUpperPos);
+    pwm_.setPWM(R_LOWERLID_SERVO, 0, rightLowerPos);
+    pwm_.setPWM(R_UPPERLID_SERVO, 0, rightUpperPos);  
 }
 
 /* ------------------------------ */

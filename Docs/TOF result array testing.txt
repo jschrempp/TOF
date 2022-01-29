@@ -1,0 +1,45 @@
+This is the report on some testing of the TOF sensor. The sensor reports a number of different arrays, but the documentation on what they mean is hard to interpret. I decided to do some empirical testing.
+
+Each test printed out the distance_mm array and one other array from the measurementData structure. I then observe it idling on a general scene; put my hand in front of the sensor; move my hand around like a real targeting session might encounter.
+
+1. target status
+
+With my hand in front of the sensor every zone reports status 5. When idling the array reports a lot of 255 (no target) and 5 (target). There are, every once in a great while, a 4 (target consistency failed). A few 10's (range valid but no target detected at previous range). There are no 6's or 9's. The same is true when I move my hand into view and move it around.I conclude that 6's and 9's are not adding any value to our work (but are also not clouding our work).
+
+2. number SPADs enabled
+
+Always the same value in all observations except when I put my hand within 3 inches of the sensor and then SPADs enabled drops to ~256 for every zone.
+
+3. range sigma (mm)
+
+Noise in the reported target distance. This is very interesting. When idling the range sigma is over 10. When my hand is in front it drops to 1. When I move my hand around valid zones have a sigma of 4 or 5. The spurious signals seem to all have a range sigma over 10. This might be a way to filter out spurious target reports. This looked so good I did a few more experiments. I tested it at a longer distance where my hand would probably not fill an entire zone. Now I found that while distance detected my hand, the range sigma remained high. I tried pointing my hand at the sensor, knowing that this would add a sloping surface to the zone; distance detected was good, but sigma was high.
+
+4. reflectance (percent)
+
+No correlation to spurious targets that I could see. Holding a piece of paper in front of the sensor gave different values than holding my hand there. Might allow us to decide that a mass of many zones is actually more than one target, but I'm not sure.
+
+5. signal per spad (photons per SPAD)
+
+idling - less than 50 with no correlation to spurious range results. With hand in front, between 8,000 - 10,000 in each zone. Interestingly, removing my hand does not have the zones all go back to the low signal per SPAD reading immediately but over time the readings drift back down to under 50 again. Moving my hand around, valid targets report over 100; a shiny magazine cover reported over 200. This could be another way to filter out spurious values.
+
+6. ambient per SPAD
+
+A measure of background noise. Idling less than 40 with no correlation to spurious distance readings. With hand in front the values drop to under 10. With hand movement there is a correlation to valid targets.
+
+7. motion indicator
+
+I couldn't figure out how to parse this field. The documentation says it reports on changes between frames, so that's something we could do in our code.
+
+
+Conclusions
+
+Our current code uses status of 5 or 9 to filter results. This is fine, but we could drop the 9 and look at only 5's.
+
+Signal per SPAD could be used to filter out spurious results, but I don't understand why it does not quickly return to the idle values when the target is removed.
+
+Range sigma could be useful if for distant targets we are only interested in larger targets; when far away, small targets will not fill a zone field of view completely and result in higher range sigma. Close up, even small targets will fill a zone and result in low range sigma so we can't differentiate large from small at a close distance.
+
+I'd like to figure out how the motion indicator works.
+
+
+Bottom line: I think we have to filter out spurious target reports in our code. 
