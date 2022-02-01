@@ -10,6 +10,10 @@
     given point up to the caller.
 
     This firmware is based upon the example 1 code in the Sparkfun library.    
+
+    Requires the caller to set up the wire.h library
+        Wire.begin(); //This resets to 100kHz I2C
+        Wire.setClock(400000); //Sensor has max I2C freq of 400kHz 
   
     Author: Bob Glicksman, Jim Schrempp
     (c) Copyright 2022 Bob Glicksman and Jim Schrempp
@@ -20,7 +24,7 @@
 #ifndef _TPP_TOF_H
 #define _TPP_TOF_H
 
-//#define CONTINUOUS_DEBUG_DISPLAY
+#define CONTINUOUS_DEBUG_DISPLAY
 
 #include <SparkFun_VL53L5CX_Library.h> //http://librarymanager/All#SparkFun_VL53L5CX
 #include <Wire.h>

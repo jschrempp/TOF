@@ -42,10 +42,6 @@ void TPP_TOF::initTOF(){
     imageWidth = 0; // read this back from the sensor
 
     Serial.println("SparkFun VL53L5CX Imager Example");
-
-    Wire.begin(); //This resets to 100kHz I2C
-    Wire.setClock(400000); //Sensor has max I2C freq of 400kHz 
-
     
     Serial.println("Initializing sensor board. This can take up to 10s. Please wait.");
     if (myImager.begin() == false) {
