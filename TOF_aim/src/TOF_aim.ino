@@ -15,7 +15,8 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman, Jim Schrempp
-  Date: 1/31/22
+  Date: 2/1/22
+  rev 1.9   moved wire initialization from ttp_tof to the .ino file setup()
   rev 1.8   moved TOF code into a class module
   rev 1.7   resolved bugs in avg and score array transversal
   rev 1.6   smooth eye movement
@@ -68,6 +69,9 @@ void setup(){
     // turn on D7 LED to indicate that we are in setup()
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, HIGH);
+
+    Wire.begin(); //This resets to 100kHz I2C
+    Wire.setClock(400000); //Sensor has max I2C freq of 400kHz 
     
     theTOF.initTOF();
     
