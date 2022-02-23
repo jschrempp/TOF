@@ -15,6 +15,9 @@
     (c) Copyright 2022 Bob Glicksman and Jim Schrempp
 
     This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
+
+2022 02 23  change to reduce chatter. 
+
 */
 
 #include <TPP_TOF.h>
@@ -90,6 +93,9 @@ void TPP_TOF::initTOF(){
             }
 
         }
+#ifdef CONTINUOUS_DEBUG_DISPLAY
+        moveTerminalCursorDown(20);
+#endif
         Serial.println("Calibration data:");
         prettyPrint(calibration);
         Serial.println("End of calibration data\n");
@@ -125,12 +131,7 @@ void TPP_TOF::processMeasuredData(VL53L5CX_ResultsData measurementData, int32_t 
             // data is good and in range, check if background
           
             // check new data against calibration value
-            temp = measuredData - calibration[i];
-            
-            // take the absolute value
-            if(temp < 0) {
-                temp = -temp;
-            }
+            temp = abs(measuredData - calibration[i]);
 
             if(temp <= NOISE_RANGE) { 
                     // zero out noise  
@@ -290,15 +291,12 @@ void TPP_TOF::getPOI(pointOfInterest *pPOI){
                     // Get the average distance of this zone
                     int avgDistThisZone = avgdistZone(thisZone, adjustedData);
 
-
                     int score = scoreZone(thisZone, adjustedData);
-
 
                     secondTable[thisZone] = avgDistThisZone; 
 
-
                     // test for the smallest value that is a significant zone
-                    if( (avgDistThisZone > 0) && (avgDistThisZone < smallestValue) &&
+                    if( (avgDistThisZone > NOISE_RANGE) && (avgDistThisZone < smallestValue) &&
                         (validate(score) == true) ) {
 
                         focusX = x;
