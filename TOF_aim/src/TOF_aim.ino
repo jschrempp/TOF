@@ -15,8 +15,10 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman, Jim Schrempp
-  Date: 2/23/22
-  rev 2.0   expanded to use zones 0 and 7
+  Date: 2/26/22
+
+  rev 2.0   expanded to use zones 0 and 7 
+            and 0-100 instead of 20-80
   rev 1.9   moved wire initialization from ttp_tof to the .ino file setup()
   rev 1.8   moved TOF code into a class module
   rev 1.7   resolved bugs in avg and score array transversal
@@ -120,8 +122,8 @@ void loop() {
             if ((focusX >= 0) && (focusY >= 0)) {
                 static int xCurrentPos = 50;
                 static int yCurrentPos = 50;
-                int xPos = map(focusX,0,7, 20,80);   
-                int yPos = map(focusY,0,7, 80,20);
+                int xPos = map(focusX,0,7, 0,100);   
+                int yPos = map(focusY,0,7, 100,0);
                 xCurrentPos = xCurrentPos + (0.1 * (xPos - xCurrentPos));
                 yCurrentPos = yCurrentPos + (0.1 * (yPos - yCurrentPos));
                 moveEyeLids(100);  
