@@ -15,8 +15,9 @@
   This firmware is based upon the example 1 code in the Sparkfun library.    
   
   Author: Bob Glicksman, Jim Schrempp
-  Date: 2/26/22
+  Date: 5/1/22
 
+  rev 2.1   added TOF event processing
   rev 2.0   expanded to use zones 0 and 7 
             and 0-100 instead of 20-80
   rev 1.9   moved wire initialization from ttp_tof to the .ino file setup()
@@ -117,21 +118,25 @@ void loop() {
 
     //decide where to point the eyes
     if (millis() - lastEyeUpdateMS > 10){
-            lastEyeUpdateMS = millis();
-            // x,y 0-100
-            if ((focusX >= 0) && (focusY >= 0)) {
-                static int xCurrentPos = 50;
-                static int yCurrentPos = 50;
-                int xPos = map(focusX,0,7, 0,100);   
-                int yPos = map(focusY,0,7, 100,0);
-                xCurrentPos = xCurrentPos + (0.1 * (xPos - xCurrentPos));
-                yCurrentPos = yCurrentPos + (0.1 * (yPos - yCurrentPos));
-                moveEyeLids(100);  
-                moveEyes(xCurrentPos, yCurrentPos);
-            } else {
-                moveEyeLids(0);
-                moveEyes(50,50);
-            }
+        lastEyeUpdateMS = millis();
+
+        // XXXX process TOF events
+       processEvents(focusX, focusY, smallestValue);
+            
+        // x,y 0-100
+        if ((focusX >= 0) && (focusY >= 0)) {
+            static int xCurrentPos = 50;
+            static int yCurrentPos = 50;
+            int xPos = map(focusX,0,7, 0,100);   
+            int yPos = map(focusY,0,7, 100,0);
+            xCurrentPos = xCurrentPos + (0.1 * (xPos - xCurrentPos));
+            yCurrentPos = yCurrentPos + (0.1 * (yPos - yCurrentPos));
+            moveEyeLids(100);  
+            moveEyes(xCurrentPos, yCurrentPos);
+        } else {
+            moveEyeLids(0);
+            moveEyes(50,50);
+        }
     }
     delay(5); //Small delay between polling
 }
@@ -161,3 +166,66 @@ void moveEyeLids(int openPct){
     pwm_.setPWM(R_LOWERLID_SERVO, 0, rightLowerPos);
     pwm_.setPWM(R_UPPERLID_SERVO, 0, rightUpperPos);  
 }
+
+
+//------------- XXX processEvents ------------------
+// evaluate the TOF sensor results to determine if a mouth event is to be published, and publish the resulting event
+void processEvents(int32_t xFocus, int32_t yFocus, int32_t distance) {
+    // event declaration
+    enum TOF_detect {
+        Person_entered_fov = 1,   // empty FOV goes to a valid detection in any zone
+        Person_left_fov = 2,      // valid detection in any zone goes to empty FOV
+        Person_too_close = 3,     // smallest distance is < TOO_CLOSE mm
+        Person_left_quickly = 4   // same as #2 but FOV was vacated in a short time period
+    };
+
+    // local constants
+    const unsigned int TOO_CLOSE = 254;  // object is too close if < 254 mm = 10"
+    const unsigned long LAST_TIME_TOO_CLOSE = 10000;    // time out for repeat of too close event - 10 seconds
+    const unsigned long TOO_SOON = 15000;   // 15 sec is the minimum time for a "valid" engagement
+    
+    // local variables
+    static bool eyesOpenLast = false;   // true of the eyes were open the last time through
+    static unsigned long timeEyesOpened = millis();
+    static unsigned long timeTooClose = 0;
+    String eventTypeAsString = "";
+
+    // test to see if the sensor detects a valid object in the fov
+    if ((xFocus >= 0) && (yFocus >= 0)) {       // valid object in fov
+        if(eyesOpenLast == false) {     // someone just entered the fov; send entered event
+            eyesOpenLast = true;    // log that eyes are open
+            timeEyesOpened = millis();
+            eventTypeAsString = String(Person_entered_fov);
+            Particle.publish("TOF_event", eventTypeAsString);
+            return;
+        }
+        else {      // someone is in the fov for a while, test for too close
+            if( (distance < TOO_CLOSE) && ((millis() - timeTooClose) > LAST_TIME_TOO_CLOSE) ) {
+                timeTooClose = millis();
+                eventTypeAsString = String(Person_too_close);
+                Particle.publish("TOF_event", eventTypeAsString);  
+                return;             
+            }
+        }
+    }
+    else {      //no valid object in fov
+        if(eyesOpenLast == true) {  // eyes just closed
+            eyesOpenLast = false;   // log that eyes are closed
+            if( (millis() - timeEyesOpened) > TOO_SOON) {   // person  in fov for a "decent" amount of time
+                eventTypeAsString = String(Person_left_fov);
+                Particle.publish("TOF_event", eventTypeAsString);  
+                return; 
+            }
+            else {      // person in fov for only a short time
+                eventTypeAsString = String(Person_left_quickly);
+                Particle.publish("TOF_event", eventTypeAsString);  
+                return;
+            }
+
+        }
+        return;
+    }
+    // if nothing to do, just return
+    return;
+
+}   // end of processEvents()
